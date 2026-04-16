@@ -79,6 +79,9 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.0;
       renderer.autoClear = true;
+      // VRM読み込み完了まで非表示（Tポーズの一瞬表示を防ぐ）
+      renderer.domElement.style.opacity = '0';
+      renderer.domElement.style.transition = 'opacity 0.3s ease-in';
       container.appendChild(renderer.domElement);
 
       // --- レンダーターゲット (VRMをクロマキー背景に不透明描画) ---
@@ -148,6 +151,30 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
               for (const mat of mats) mat.needsUpdate = true;
             }
           });
+
+          // 初回ボーンポーズを即座に適用（Tポーズ防止）
+          if (vrm.humanoid) {
+            const lArm = vrm.humanoid.getRawBoneNode('leftUpperArm');
+            if (lArm) lArm.rotation.set(0, 0, Math.PI * 0.42);
+            const rArm = vrm.humanoid.getRawBoneNode('rightUpperArm');
+            if (rArm) rArm.rotation.set(0, 0, -Math.PI * 0.42);
+            vrm.humanoid.getRawBoneNode('leftLowerArm')?.rotation.set(0, 0, 0);
+            vrm.humanoid.getRawBoneNode('rightLowerArm')?.rotation.set(0, 0, 0);
+            vrm.humanoid.getRawBoneNode('leftHand')?.rotation.set(0, 0, 0.2);
+            vrm.humanoid.getRawBoneNode('rightHand')?.rotation.set(0, 0, -0.2);
+          }
+          vrm.update(0);
+
+          // 初回フレームを描画してからキャンバスを表示
+          renderer.setRenderTarget(renderTarget);
+          renderer.setClearColor(CHROMA_COLOR, 1);
+          renderer.clear();
+          renderer.render(scene, camera);
+          renderer.setRenderTarget(null);
+          renderer.setClearColor(0x000000, 0);
+          renderer.clear();
+          renderer.render(quadScene, quadCamera);
+          renderer.domElement.style.opacity = '1';
 
           errorRef.current?.classList.add('hidden');
         },
