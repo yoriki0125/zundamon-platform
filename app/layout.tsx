@@ -1,20 +1,20 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
+import type { Metadata } from 'next';
+import { Noto_Sans_JP, Geist_Mono } from 'next/font/google';
+import './globals.css';
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+const notoSansJP = Noto_Sans_JP({
+  subsets: ['latin'],
+  weight: ['400', '500', '700', '900'],
+  variable: '--font-sans',
 });
-
 const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  subsets: ['latin'],
+  variable: '--font-mono',
 });
 
 export const metadata: Metadata = {
-  title: "ずんだもん喋らせ台",
-  description: "ずんだもんに感情を込めて喋らせる社内ツール",
+  title: 'ずんだもん Studio',
+  description: 'ずんだもんと話そう — Zundamon VRM 3D Character App',
 };
 
 export default function RootLayout({
@@ -23,11 +23,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="h-full overflow-hidden">{children}</body>
+    <html lang="ja" className={`${notoSansJP.variable} ${geistMono.variable} h-full bg-background`}>
+      <body className="h-full overflow-hidden font-sans antialiased">{children}</body>
     </html>
   );
 }

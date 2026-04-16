@@ -14,13 +14,45 @@ interface VRMViewerProps {
   className?: string;
 }
 
+/* ── クロマキー合成用シェーダー ─────────────────────────────
+ *  レンダーターゲットに描画した結果のうち、クロマキー色（マゼンタ）の
+ *  ピクセルを透明にし、それ以外（=VRMモデル）を不透明で出力する。
+ *  これにより、MToonのアルファに関係なくモデルは完全不透明に描画され、
+ *  背景部分だけCSSエフェクトが透過して見える。
+ * ─────────────────────────────────────────────────────── */
+const CHROMA_KEY_VS = `
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = vec4(position.xy, 0.0, 1.0);
+  }
+`;
+
+const CHROMA_KEY_FS = `
+  uniform sampler2D tDiffuse;
+  uniform vec3 chromaKey;
+  varying vec2 vUv;
+  void main() {
+    vec4 texel = texture2D(tDiffuse, vUv);
+    float diff = distance(texel.rgb, chromaKey);
+    // クロマキー色に近い → 透明、それ以外 → 不透明
+    float alpha = smoothstep(0.08, 0.25, diff);
+    // パステル調: 彩度を少し抑える
+    float luma = dot(texel.rgb, vec3(0.299, 0.587, 0.114));
+    vec3 pastel = mix(texel.rgb, vec3(luma), 0.30);
+    gl_FragColor = vec4(pastel, alpha);
+  }
+`;
+
+const CHROMA_COLOR = new THREE.Color('#FF00FF');
+
 const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
   function VRMViewer({ className }, ref) {
     const mountRef = useRef<HTMLDivElement>(null);
+    const errorRef = useRef<HTMLDivElement>(null);
     const vrmRef = useRef<VRM | null>(null);
     const blendShapesRef = useRef<Record<string, number>>({});
     const mouthOpenRef = useRef(0);
-    const errorRef = useRef<HTMLDivElement>(null);
 
     useImperativeHandle(ref, () => ({
       setBlendShapes(shapes: Record<string, number>) {
@@ -37,20 +69,47 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
       const container = mountRef.current;
       const width = container.clientWidth;
       const height = container.clientHeight;
+      const pixelRatio = window.devicePixelRatio;
 
-      // --- Renderer ---
-      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+      // --- Renderer (透明キャンバス — 最終出力はクロマキーで透過制御) ---
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       renderer.setSize(width, height);
-      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setPixelRatio(pixelRatio);
       renderer.outputColorSpace = THREE.SRGBColorSpace;
-      // MToonマテリアル（目のハイライト等）を正しく描画するためのトーンマッピング設定
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.0;
+      renderer.autoClear = true;
       container.appendChild(renderer.domElement);
 
-      // --- Scene ---
+      // --- レンダーターゲット (VRMをクロマキー背景に不透明描画) ---
+      const rtW = Math.floor(width * pixelRatio);
+      const rtH = Math.floor(height * pixelRatio);
+      const renderTarget = new THREE.WebGLRenderTarget(rtW, rtH, {
+        format: THREE.RGBAFormat,
+        minFilter: THREE.LinearFilter,
+        magFilter: THREE.LinearFilter,
+      });
+
+      // --- VRM シーン (クロマキー背景) ---
       const scene = new THREE.Scene();
-      scene.background = new THREE.Color('#1a1a2e');
+      scene.background = CHROMA_COLOR;
+
+      // --- クロマキー合成シーン ---
+      const quadMaterial = new THREE.ShaderMaterial({
+        uniforms: {
+          tDiffuse: { value: renderTarget.texture },
+          chromaKey: { value: CHROMA_COLOR },
+        },
+        vertexShader: CHROMA_KEY_VS,
+        fragmentShader: CHROMA_KEY_FS,
+        transparent: true,
+        depthTest: false,
+        depthWrite: false,
+      });
+      const quadMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), quadMaterial);
+      const quadScene = new THREE.Scene();
+      quadScene.add(quadMesh);
+      const quadCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
       // --- Camera ---
       const camera = new THREE.PerspectiveCamera(25, width / height, 0.1, 20);
@@ -58,16 +117,13 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
       camera.lookAt(0, 0.9, 0);
 
       // --- Lights ---
-      const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
+      const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 2.3);
       hemiLight.position.set(0, 10, 0);
       scene.add(hemiLight);
 
-      const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+      const dirLight = new THREE.DirectionalLight(0xffffff, 2.0);
       dirLight.position.set(1, 3, 2);
       scene.add(dirLight);
-
-      // --- Clock for animation ---
-      const clock = new THREE.Clock();
 
       // --- Load VRM ---
       const loader = new GLTFLoader();
@@ -84,67 +140,45 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
           scene.add(vrm.scene);
           vrmRef.current = vrm;
 
-          // MToonマテリアルのハイライトを初期から正しく表示するため強制更新
+          // MToon マテリアルの更新フラグ
           vrm.scene.traverse((obj) => {
             if ((obj as THREE.Mesh).isMesh) {
               const mesh = obj as THREE.Mesh;
-              const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-              for (const mat of materials) {
-                mat.needsUpdate = true;
-              }
+              const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+              for (const mat of mats) mat.needsUpdate = true;
             }
           });
-          // ロード直後に1フレーム描画してマテリアルを初期化
-          renderer.render(scene, camera);
 
-          // Expression一覧をコンソールに出力
-          if (vrm.expressionManager) {
-            const expressionNames = vrm.expressionManager.expressions.map(
-              (e) => e.expressionName
-            );
-            console.log('[VRMViewer] Available expressions:', expressionNames);
-          }
-
-          // ロード直後のボーン初期回転値をコンソールに出力
-          const debugBones = ['leftUpperArm','rightUpperArm','leftLowerArm','rightLowerArm','leftHand','rightHand'] as const;
-          console.log('=== ボーン初期回転値 (Raw) ===');
-          for (const name of debugBones) {
-            const bone = vrm.humanoid.getRawBoneNode(name);
-            if (bone) {
-              const r = bone.rotation;
-              console.log(`${name}: x=${r.x.toFixed(3)} y=${r.y.toFixed(3)} z=${r.z.toFixed(3)}`);
-            } else {
-              console.log(`${name}: NOT FOUND`);
-            }
-          }
-
-          if (errorRef.current) errorRef.current.style.display = 'none';
+          errorRef.current?.classList.add('hidden');
         },
         undefined,
         (error) => {
-          console.error('[VRMViewer] Failed to load VRM:', error);
-          if (errorRef.current) {
-            errorRef.current.style.display = 'flex';
-          }
+          console.error('[VRMViewer] VRM load failed:', error);
+          errorRef.current?.classList.remove('hidden');
         }
       );
 
-      // まばたきタイミング管理
+      // --- まばたき状態 ---
       let nextBlinkTime = 2 + Math.random() * 3;
       let blinkPhase: 'idle' | 'closing' | 'opening' = 'idle';
       let blinkTimer = 0;
 
-      // --- Animation Loop ---
+      // --- アニメーションループ ---
+      let lastTime = performance.now();
+      let elapsed = 0;
       let frameId: number;
+
       const animate = () => {
         frameId = requestAnimationFrame(animate);
-        const delta = clock.getDelta();
-        const elapsed = clock.getElapsedTime();
 
-        if (vrmRef.current) {
-          const vrm = vrmRef.current;
+        const now = performance.now();
+        const delta = Math.min((now - lastTime) / 1000, 0.1);
+        lastTime = now;
+        elapsed += delta;
 
-          // まばたき
+        const vrm = vrmRef.current;
+        if (vrm) {
+          // --- まばたき ---
           if (vrm.expressionManager) {
             nextBlinkTime -= delta;
             if (blinkPhase === 'idle' && nextBlinkTime <= 0) {
@@ -167,123 +201,99 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
               }
             }
 
-            // まず全てリセット
-            const allExpressions = vrm.expressionManager.expressions;
-            for (const expr of allExpressions) {
+            // 全表情をリセット
+            for (const expr of vrm.expressionManager.expressions) {
               vrm.expressionManager.setValue(expr.expressionName, 0);
             }
 
-            // まばたき適用 (blink / blinkLeft+blinkRight)
+            // まばたき
             if (blinkValue > 0) {
-              const blinkCandidates = ['blink', 'Blink'];
               let applied = false;
-              for (const b of blinkCandidates) {
-                try {
-                  vrm.expressionManager.setValue(b, blinkValue);
-                  applied = true;
-                  break;
-                } catch { /* なし */ }
+              for (const name of ['blink', 'Blink']) {
+                try { vrm.expressionManager.setValue(name, blinkValue); applied = true; break; }
+                catch { /* 存在しない */ }
               }
               if (!applied) {
-                try { vrm.expressionManager.setValue('blinkLeft', blinkValue); } catch { /* なし */ }
-                try { vrm.expressionManager.setValue('blinkRight', blinkValue); } catch { /* なし */ }
+                try { vrm.expressionManager.setValue('blinkLeft', blinkValue); } catch { /* */ }
+                try { vrm.expressionManager.setValue('blinkRight', blinkValue); } catch { /* */ }
               }
             }
 
-            // 感情 BlendShape 適用
+            // 感情 BlendShape
             for (const [name, value] of Object.entries(blendShapesRef.current)) {
-              try { vrm.expressionManager.setValue(name, value); } catch { /* なし */ }
+              try { vrm.expressionManager.setValue(name, value); } catch { /* */ }
             }
 
             // 口パク
             const mouthVal = mouthOpenRef.current;
             if (mouthVal > 0.01) {
-              const mouthCandidates = ['aa', 'a', 'mouth_a', 'A'];
-              for (const candidate of mouthCandidates) {
-                try {
-                  vrm.expressionManager.setValue(candidate, mouthVal);
-                  break;
-                } catch { /* なし */ }
+              for (const name of ['aa', 'a', 'mouth_a', 'A']) {
+                try { vrm.expressionManager.setValue(name, mouthVal); break; }
+                catch { /* */ }
               }
             }
           }
 
           vrm.update(delta);
 
-          // vrm.update() の後にすべてのボーンアニメーションを適用
+          // --- ボーンアニメーション ---
           if (vrm.humanoid) {
             const breathVal = Math.sin(elapsed * 1.5);
 
-            // 呼吸 (spine)
-            const spine = vrm.humanoid.getRawBoneNode('spine');
-            if (spine) spine.rotation.x = breathVal * 0.015;
+            vrm.humanoid.getRawBoneNode('spine')?.rotation.set(breathVal * 0.015, 0, 0);
+            vrm.humanoid.getRawBoneNode('chest')?.rotation.set(breathVal * 0.01, 0, 0);
 
-            // 呼吸 (chest)
-            const chest = vrm.humanoid.getRawBoneNode('chest');
-            if (chest) chest.rotation.x = breathVal * 0.01;
-
-            // 頭の揺れ
             const head = vrm.humanoid.getRawBoneNode('head');
             if (head) {
               head.rotation.y = Math.sin(elapsed * 0.4) * 0.06;
               head.rotation.z = Math.sin(elapsed * 0.6) * 0.02;
             }
 
-            // 上腕を下げる + 少し前に傾けて手がズボンにめり込まないようにする
-            // 上腕: 少し脇を締めてA字 (0.38→0.43)
-            const lRaw = vrm.humanoid.getRawBoneNode('leftUpperArm');
-            if (lRaw) {
-              lRaw.rotation.x = 0;
-              lRaw.rotation.y = 0;
-              lRaw.rotation.z = Math.PI * 0.42 + Math.sin(elapsed * 1.5 + 1) * 0.02;
-            }
-            const rRaw = vrm.humanoid.getRawBoneNode('rightUpperArm');
-            if (rRaw) {
-              rRaw.rotation.x = 0;
-              rRaw.rotation.y = 0;
-              rRaw.rotation.z = -(Math.PI * 0.42 + Math.sin(elapsed * 1.5) * 0.02);
-            }
+            const lArm = vrm.humanoid.getRawBoneNode('leftUpperArm');
+            if (lArm) lArm.rotation.set(0, 0, Math.PI * 0.42 + Math.sin(elapsed * 1.5 + 1) * 0.02);
 
-            // 前腕はリセット
-            const lLower = vrm.humanoid.getRawBoneNode('leftLowerArm');
-            if (lLower) { lLower.rotation.set(0, 0, 0); }
-            const rLower = vrm.humanoid.getRawBoneNode('rightLowerArm');
-            if (rLower) { rLower.rotation.set(0, 0, 0); }
+            const rArm = vrm.humanoid.getRawBoneNode('rightUpperArm');
+            if (rArm) rArm.rotation.set(0, 0, -(Math.PI * 0.42 + Math.sin(elapsed * 1.5) * 0.02));
 
-            // 手のひらを自然に内側へ若干曲げる
-            const lHand = vrm.humanoid.getRawBoneNode('leftHand');
-            if (lHand) { lHand.rotation.set(0, 0, 0.2); }
-            const rHand = vrm.humanoid.getRawBoneNode('rightHand');
-            if (rHand) { rHand.rotation.set(0, 0, -0.2); }
+            vrm.humanoid.getRawBoneNode('leftLowerArm')?.rotation.set(0, 0, 0);
+            vrm.humanoid.getRawBoneNode('rightLowerArm')?.rotation.set(0, 0, 0);
+            vrm.humanoid.getRawBoneNode('leftHand')?.rotation.set(0, 0, 0.2);
+            vrm.humanoid.getRawBoneNode('rightHand')?.rotation.set(0, 0, -0.2);
 
-            // 親指を閉じる
-            const thumbBones = [
+            for (const name of [
               'leftThumbMetacarpal', 'leftThumbProximal', 'leftThumbDistal',
               'rightThumbMetacarpal', 'rightThumbProximal', 'rightThumbDistal',
-            ] as const;
-            for (const name of thumbBones) {
+            ] as const) {
               const bone = vrm.humanoid.getRawBoneNode(name);
-              if (!bone) continue;
-              if (name.startsWith('left')) {
-                bone.rotation.set(0, 0.4, 0.05);
-              } else {
-                bone.rotation.set(0, -0.4, -0.05);
-              }
+              if (bone) bone.rotation.set(0, name.startsWith('left') ? 0.4 : -0.4, name.startsWith('left') ? 0.05 : -0.05);
             }
           }
         }
 
+        // Pass 1: VRMシーンをレンダーターゲットに描画（クロマキー背景で不透明）
+        renderer.setRenderTarget(renderTarget);
+        renderer.setClearColor(CHROMA_COLOR, 1);
+        renderer.clear();
         renderer.render(scene, camera);
+
+        // Pass 2: クロマキー合成してメインキャンバスに出力（モデル=不透明、背景=透明）
+        renderer.setRenderTarget(null);
+        renderer.setClearColor(0x000000, 0);
+        renderer.clear();
+        renderer.render(quadScene, quadCamera);
       };
       animate();
 
-      // --- Resize handler ---
+      // --- Resize ---
       const handleResize = () => {
         const w = container.clientWidth;
         const h = container.clientHeight;
         camera.aspect = w / h;
         camera.updateProjectionMatrix();
         renderer.setSize(w, h);
+        const newRtW = Math.floor(w * pixelRatio);
+        const newRtH = Math.floor(h * pixelRatio);
+        renderTarget.setSize(newRtW, newRtH);
       };
       window.addEventListener('resize', handleResize);
 
@@ -292,10 +302,7 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
       let prevX = 0;
       let rotationY = Math.PI;
 
-      const onMouseDown = (e: MouseEvent) => {
-        isDragging = true;
-        prevX = e.clientX;
-      };
+      const onMouseDown = (e: MouseEvent) => { isDragging = true; prevX = e.clientX; };
       const onMouseMove = (e: MouseEvent) => {
         if (!isDragging || !vrmRef.current) return;
         rotationY += (e.clientX - prevX) * 0.01;
@@ -314,6 +321,8 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
         renderer.domElement.removeEventListener('mousedown', onMouseDown);
         window.removeEventListener('mousemove', onMouseMove);
         window.removeEventListener('mouseup', onMouseUp);
+        renderTarget.dispose();
+        quadMaterial.dispose();
         renderer.dispose();
         if (container.contains(renderer.domElement)) {
           container.removeChild(renderer.domElement);
@@ -326,15 +335,14 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
         <div ref={mountRef} className="w-full h-full" />
         <div
           ref={errorRef}
-          style={{ display: 'none' }}
-          className="absolute inset-0 flex flex-col items-center justify-center bg-[#1a1a2e] text-white gap-4"
+          className="hidden absolute inset-0 flex flex-col items-center justify-center bg-background text-foreground gap-4"
         >
-          <p className="text-2xl">⚠️ VRMモデルが見つかりません</p>
-          <p className="text-sm text-gray-400">
-            <code className="bg-gray-800 px-2 py-1 rounded">
+          <p className="text-xl font-bold">VRMモデルが見つかりません</p>
+          <p className="text-sm text-muted-foreground">
+            <code className="bg-muted px-2 py-1 rounded text-xs">
               public/models/zundamon.vrm
             </code>{' '}
-            を配置してページをリロードしてください
+            を配置してリロードしてください
           </p>
         </div>
       </div>
