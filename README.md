@@ -1,36 +1,86 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ずんだもん喋らせ台
 
-## Getting Started
+テキストと感情タグを入力すると、3Dずんだもんが感情に応じた表情・声で喋る社内ツールです。
 
-First, run the development server:
+## 前提条件
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- **`public/models/zundamon.vrm`** が配置済みであること
+- ローカル開発時: Node.js 20+ / VOICEVOXアプリ起動済み
+- サーバー運用時: Docker / Docker Compose
+
+## ローカル開発
+
+### 1. VRMモデルの配置
+
+```
+public/models/zundamon.vrm
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+> **注意**: VRMモデルの利用は配布元の規約に従ってください。社内利用であっても、モデルのライセンス条件を必ず確認してから使用してください。
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 2. VOICEVOXエンジンの起動
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+VOICEVOXアプリを起動してください (`localhost:50021` で動作)。
 
-## Learn More
+### 3. 起動
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm install
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+ブラウザで http://localhost:3000 を開いてください。
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## Docker (サーバー運用)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 前提
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Docker / Docker Compose がインストール済みであること
+- `public/models/zundamon.vrm` が配置済みであること
+
+### 起動
+
+```bash
+docker compose up --build
+```
+
+- アプリ: http://サーバーIP:3000
+- VOICEVOXエンジン: http://サーバーIP:50021 (内部のみで使用)
+
+### GPU版VOICEVOXを使う場合
+
+`docker-compose.yml` 内のコメントを参照してください。
+
+### 停止
+
+```bash
+docker compose down
+```
+
+---
+
+## Step別 動作確認手順
+
+### Step 1: VRM表示
+- `npm run dev` でずんだもんが画面中央に表示される
+- ゆっくり呼吸している (胸の上下)
+- ブラウザのDevToolsコンソールに利用可能なExpression名が出力される
+- VRMファイルが無い場合はエラーメッセージが表示される
+
+### Step 2〜5
+(実装後に追記予定)
+
+---
+
+## 感情タグ一覧
+
+| タグ | 説明 | VOICEVOXスタイル |
+|---|---|---|
+| neutral | ノーマル | 3 |
+| happy | うれしい | 1 (あまあま) |
+| angry | おこ | 7 (ツンツン) |
+| sad | かなしい | 3 |
+| surprised | びっくり | 1 |
+| shy | はずかしい | 5 (ささやき) |

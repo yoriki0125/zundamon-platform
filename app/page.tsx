@@ -1,65 +1,169 @@
-import Image from "next/image";
+'use client';
+
+import { useRef, useState, useCallback, useEffect } from 'react';
+import dynamic from 'next/dynamic';
+import { Emotion, HistoryItem, SpeakResponse } from '@/lib/types';
+import { synthesize, checkVoicevox } from '@/lib/voicevox';
+import { useLipSyncVolume } from '@/lib/lipsync';
+import SpeakPanel from '@/components/SpeakPanel';
+import HistoryList from '@/components/HistoryList';
+import { VRMViewerHandle } from '@/components/VRMViewer';
+
+// VRMViewer は SSR 無効で読み込む (Three.js は browser-only)
+const VRMViewer = dynamic(() => import('@/components/VRMViewer'), { ssr: false });
+
+const MAX_HISTORY = 20;
 
 export default function Home() {
+  const vrmRef = useRef<VRMViewerHandle>(null);
+  const queueRef = useRef<(() => Promise<void>)[]>([]);
+  const playingRef = useRef(false);
+  const [audioEl, setAudioEl] = useState<HTMLAudioElement | null>(null);
+
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [voicevoxOk, setVoicevoxOk] = useState<boolean | null>(null);
+
+  const volume = useLipSyncVolume(audioEl);
+
+  // 口パクをVRMに反映
+  useEffect(() => {
+    vrmRef.current?.setMouthOpen(volume);
+  }, [volume]);
+
+  // VOICEVOX 接続確認
+  useEffect(() => {
+    checkVoicevox().then(setVoicevoxOk);
+  }, []);
+
+  const playItem = useCallback(
+    async (item: HistoryItem) => {
+      try {
+        // VRM表情適用
+        vrmRef.current?.setBlendShapes(item.blendShapes);
+
+        // 音声合成
+        const { audioBlob } = await synthesize(item.spokenText, item.voicevoxStyleId);
+        const url = URL.createObjectURL(audioBlob);
+
+        const audio = new Audio(url);
+        setAudioEl(audio);
+
+        await new Promise<void>((resolve) => {
+          audio.onended = () => { URL.revokeObjectURL(url); resolve(); };
+          audio.onerror = () => { URL.revokeObjectURL(url); resolve(); };
+          audio.play().catch(resolve);
+        });
+
+        vrmRef.current?.setBlendShapes({ neutral: 1.0 });
+        setAudioEl(null);
+      } catch (err) {
+        console.error('[playItem]', err);
+        setError('VOICEVOXエンジンを起動してください (localhost:50021)');
+      }
+    },
+    []
+  );
+
+  const runQueue = useCallback(async () => {
+    if (playingRef.current) return;
+    playingRef.current = true;
+    while (queueRef.current.length > 0) {
+      const task = queueRef.current.shift();
+      if (task) await task();
+    }
+    playingRef.current = false;
+    setIsLoading(false);
+  }, []);
+
+  const handleSpeak = useCallback(
+    async (text: string, emotion: Emotion) => {
+      setError(null);
+      setIsLoading(true);
+
+      try {
+        const ok = await checkVoicevox();
+        setVoicevoxOk(ok);
+        if (!ok) {
+          setError('VOICEVOXエンジンを起動してください (localhost:50021)');
+          setIsLoading(false);
+          return;
+        }
+
+        const res = await fetch('/api/speak', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, emotion }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error ?? 'APIエラー');
+        }
+
+        const data: SpeakResponse = await res.json();
+
+        const item: HistoryItem = {
+          id: crypto.randomUUID(),
+          text,
+          spokenText: data.spokenText,
+          emotion,
+          blendShapes: data.blendShapes,
+          voicevoxStyleId: data.voicevoxStyleId,
+          timestamp: new Date(),
+        };
+
+        setHistory((prev) => [...prev.slice(-MAX_HISTORY + 1), item]);
+        queueRef.current.push(() => playItem(item));
+        runQueue();
+      } catch (err) {
+        console.error('[handleSpeak]', err);
+        setError(err instanceof Error ? err.message : '不明なエラーが発生しました');
+        setIsLoading(false);
+      }
+    },
+    [playItem, runQueue]
+  );
+
+  const handleReplay = useCallback(
+    (item: HistoryItem) => {
+      setIsLoading(true);
+      setError(null);
+      queueRef.current.push(() => playItem(item));
+      runQueue();
+    },
+    [playItem, runQueue]
+  );
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="flex h-screen bg-[#0f0f1a] text-white overflow-hidden">
+      {/* 3D ビューア */}
+      <div className="flex-1 relative">
+        <VRMViewer ref={vrmRef} className="w-full h-full" />
+        {voicevoxOk === false && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-900/80 border border-red-700
+                          text-red-200 text-sm px-4 py-2 rounded-full backdrop-blur-sm whitespace-nowrap">
+            VOICEVOXエンジンを起動してください (localhost:50021)
+          </div>
+        )}
+      </div>
+
+      {/* 右サイドパネル */}
+      <aside className="w-80 flex flex-col gap-4 p-4 bg-gray-950 border-l border-gray-800 overflow-hidden">
+        <h1 className="text-lg font-bold text-green-400 tracking-wide">
+          ずんだもん喋らせ台
+        </h1>
+        <SpeakPanel onSpeak={handleSpeak} isLoading={isLoading} error={error} />
+        <div className="flex-1 flex flex-col gap-2 min-h-0">
+          <h2 className="text-sm font-semibold text-gray-400 flex-shrink-0">
+            発話履歴 ({history.length}/{MAX_HISTORY})
+          </h2>
+          <div className="flex-1 min-h-0">
+            <HistoryList items={history} onReplay={handleReplay} isLoading={isLoading} />
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </aside>
+    </main>
   );
 }
