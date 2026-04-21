@@ -138,6 +138,37 @@
     /* ===== ページ本体（オリジナル） ===== */
     .page-body{flex:1;padding:20px 24px;overflow-y:auto;}
 
+    /* ===== AI記事セクション ===== */
+    .ai-articles{margin-top:20px;}
+    .sec-header{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
+    .sec-title{font-size:14px;font-weight:bold;color:#333;}
+    .sec-badge{font-size:10px;background:linear-gradient(90deg,#00c9a7,#0097a7);color:white;padding:2px 8px;border-radius:10px;}
+    .sec-sub{font-size:11px;color:#aaa;margin-left:auto;}
+
+    /* フィーチャー記事 */
+    .art-feature{background:white;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,0.06);display:flex;gap:0;overflow:hidden;margin-bottom:14px;}
+    .art-feat-img{width:200px;flex-shrink:0;background:#dde8e6;position:relative;display:flex;align-items:center;justify-content:center;font-size:48px;}
+    .art-feat-new{position:absolute;top:8px;left:8px;background:#00c9a7;color:white;font-size:10px;font-weight:bold;padding:2px 7px;border-radius:4px;}
+    .art-feat-body{flex:1;padding:16px 18px;display:flex;gap:16px;}
+    .art-feat-main{flex:1;}
+    .art-cat{display:inline-block;border:1px solid #ccc;border-radius:4px;font-size:10px;color:#666;padding:1px 6px;margin-bottom:6px;}
+    .art-feat-title{font-size:13px;font-weight:bold;color:#333;line-height:1.55;margin-bottom:8px;}
+    .art-feat-desc{font-size:11px;color:#888;line-height:1.7;}
+    .art-feat-list{width:240px;border-left:1px solid #f0f0f0;padding-left:16px;display:flex;flex-direction:column;gap:8px;justify-content:center;}
+    .art-feat-link{font-size:11px;color:#444;line-height:1.45;cursor:pointer;padding-bottom:8px;border-bottom:1px solid #f5f5f5;}
+    .art-feat-link:last-child{border-bottom:none;}
+    .art-feat-link .afl-cat{font-size:10px;color:#888;margin-bottom:1px;}
+    .art-feat-link:hover .afl-title{color:#00a98a;text-decoration:underline;}
+
+    /* グリッド記事 */
+    .art-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+    .art-card{background:white;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,0.06);overflow:hidden;cursor:pointer;transition:box-shadow 0.15s;}
+    .art-card:hover{box-shadow:0 4px 14px rgba(0,0,0,0.10);}
+    .art-thumb{height:100px;background:#dde8e6;display:flex;align-items:center;justify-content:center;font-size:32px;position:relative;}
+    .art-thumb-label{position:absolute;bottom:6px;left:6px;right:6px;background:rgba(0,80,60,0.55);color:white;font-size:9px;line-height:1.4;padding:3px 6px;border-radius:4px;}
+    .art-card-body{padding:10px 12px;}
+    .art-card-title{font-size:11px;color:#333;line-height:1.5;font-weight:bold;}
+
     /* メッセージブロック */
     .msg-block{background:white;border-radius:10px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 1px 6px rgba(0,0,0,0.06);margin-bottom:14px;}
     .msg-block-left{display:flex;align-items:center;gap:10px;}
@@ -347,6 +378,70 @@
           <div class="dash-empty">本日の予定はありません</div>
         </div>
       </div>
+
+      <!-- AI記事セクション -->
+      <div class="ai-articles">
+        <div class="sec-header">
+          <span class="sec-title">📝 AI厳選記事</span>
+          <span class="sec-badge">AIおすすめ</span>
+          <span class="sec-sub">あなたの業務に関連する記事をAIがピックアップしました</span>
+        </div>
+
+        <!-- フィーチャー記事 -->
+        <div class="art-feature">
+          <div class="art-feat-img">
+            🧑‍🏫
+            <span class="art-feat-new">NEW</span>
+          </div>
+          <div class="art-feat-body">
+            <div class="art-feat-main">
+              <span class="art-cat">日本語教師</span>
+              <div class="art-feat-title">【修了生インタビュー：日本語教師】定年に備え日本語教師養成講座を受講。社会的ニーズもやりがいも大きい日本語教育の世界へ</div>
+              <div class="art-feat-desc">セカンドキャリアとして注目される日本語教師。修了生が語る受講のきっかけや現場でのやりがいとは。</div>
+            </div>
+            <div class="art-feat-list">
+              <div class="art-feat-link"><div class="afl-cat">【修了生インタビュー：日本語教師】</div><div class="afl-title">セカンドキャリアは生きがいを感じる…</div></div>
+              <div class="art-feat-link"><div class="afl-cat">【日本語教師】</div><div class="afl-title">外国人学習者との絆を深めるコミュニケーションのヒント</div></div>
+              <div class="art-feat-link"><div class="afl-cat">【修了生インタビュー：日本語教師】</div><div class="afl-title">やさしくて・おもしろい「日本語教師」…</div></div>
+              <div class="art-feat-link"><div class="afl-cat">【修了生インタビュー：日本語教師】</div><div class="afl-title">日本で頑張っている外国人の力になり…</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- グリッド記事 -->
+        <div class="art-grid">
+          <div class="art-card">
+            <div class="art-thumb">🧍<div class="art-thumb-label">日本語教師に向き・不向きってあるの？</div></div>
+            <div class="art-card-body">
+              <span class="art-cat">日本語教師</span>
+              <div class="art-card-title">【日本語】日本語教師に向き・不向きってあるの？</div>
+            </div>
+          </div>
+          <div class="art-card">
+            <div class="art-thumb">📖<div class="art-thumb-label">模擬授業前の教案作成。Wordで教案作成する際のよくある質問にお答え！</div></div>
+            <div class="art-card-body">
+              <span class="art-cat">Office｜PC｜日本語教師</span>
+              <div class="art-card-title">【日本語・office】模擬授業前の教案作成。Wordで教案作成する際のよくある質問にお答え！</div>
+            </div>
+          </div>
+          <div class="art-card">
+            <div class="art-thumb">🎤<div class="art-thumb-label">Interview</div></div>
+            <div class="art-card-body">
+              <span class="art-cat">日本語教師</span>
+              <div class="art-card-title">【修了生インタビュー：日本語】「日本語教師は、日々勉強」その教えを胸に。</div>
+            </div>
+          </div>
+          <div class="art-card">
+            <div class="art-thumb">✍️<div class="art-thumb-label">日本語教師の現実。日本語教師の泣き笑いをお伝え！</div></div>
+            <div class="art-card-body">
+              <span class="art-cat">日本語教師</span>
+              <div class="art-card-title">【日本語】日本語教師の現実。日本語教師の泣き笑いをお伝えします！</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- /AI記事セクション -->
+
     </div>
 
   </div><!-- /main -->
