@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>AIコンシェルジュ × ずんだもん モックアップ</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Hiragino Sans','Yu Gothic',sans-serif;background:#f5f6f8;height:100vh;overflow:hidden;}
+    .layout{display:flex;height:100vh;overflow:hidden;}
+
+    /* ===== 左サイドバー（オリジナル） ===== */
+    .sidebar{width:210px;background:white;border-right:1px solid #e0e0e0;display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto;}
+    .sb-profile{background:linear-gradient(135deg,#00c9a7,#0097a7);padding:20px 16px;text-align:center;color:white;position:relative;}
+    .sb-close{position:absolute;top:8px;left:8px;background:rgba(255,255,255,0.3);border:none;color:white;width:22px;height:22px;border-radius:50%;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+    .sb-avatar{width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,0.25);margin:0 auto 8px;display:flex;align-items:center;justify-content:center;font-size:28px;}
+    .sb-name{font-size:15px;font-weight:bold;}
+    .sb-id{font-size:12px;opacity:0.85;margin-top:3px;}
+    .sb-btn{margin-top:10px;padding:5px 22px;border-radius:20px;border:1.5px solid white;background:transparent;color:white;font-size:12px;cursor:pointer;}
+    .sb-section{padding:10px 16px 4px;font-size:11px;color:#aaa;font-weight:bold;display:flex;justify-content:space-between;align-items:center;}
+    .sb-item{padding:9px 20px;font-size:13px;color:#444;cursor:pointer;display:flex;align-items:center;justify-content:space-between;}
+    .sb-item:hover{background:#f5f5f5;}
+    .sb-item .ext{font-size:10px;color:#aaa;}
+    .sb-divider{height:1px;background:#f0f0f0;margin:4px 0;}
+
+    /* ===== メイン ===== */
+    .main{flex:1;display:flex;flex-direction:column;min-width:0;height:100vh;overflow-y:auto;}
+
+    /* ===== トップナビ（オリジナル） ===== */
+    .topnav{background:white;border-bottom:1px solid #e0e0e0;padding:0 24px;height:54px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+    .tn-logo{font-size:22px;font-weight:bold;color:#00c9a7;display:flex;align-items:center;gap:6px;}
+    .tn-tabs{display:flex;gap:28px;}
+    .tn-tab{font-size:13px;color:#666;cursor:pointer;padding:4px 0;border-bottom:2px solid transparent;display:flex;align-items:center;gap:4px;}
+    .tn-tab.active{color:#00c9a7;border-bottom-color:#00c9a7;}
+    .tn-badge{background:#e74c3c;color:white;border-radius:10px;padding:1px 6px;font-size:10px;}
+    .tn-right{display:flex;align-items:center;gap:12px;}
+    .tn-switch{padding:6px 14px;border-radius:20px;border:1px solid #ccc;background:white;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;}
+    .tn-profile{font-size:13px;color:#555;cursor:pointer;}
+
+    /* ===== AIコンシェルジュ ページ最上部ベタづけ ===== */
+    .concierge-wrap{background:white;border-bottom:2px solid #e0e0e0;box-shadow:0 2px 12px rgba(0,0,0,0.07);}
+
+    /* 上部バー */
+    .c-bar{display:flex;align-items:center;justify-content:space-between;padding:9px 18px;cursor:pointer;user-select:none;}
+    .c-bar-left{display:flex;align-items:center;gap:10px;}
+    .c-bar-icon{font-size:20px;}
+    .c-bar-title{font-size:14px;font-weight:bold;color:#333;}
+    .c-bar-badge{font-size:10px;background:#e3f7f3;color:#00a98a;padding:2px 8px;border-radius:10px;}
+    .toggle-btn{width:30px;height:30px;border-radius:50%;background:#00c9a7;color:white;border:none;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform 0.3s;}
+    .toggle-btn.open{transform:rotate(180deg);}
+
+    /* AIからのアラートバナー */
+    .ai-alert{display:none;align-items:center;gap:8px;padding:6px 16px;background:linear-gradient(90deg,#fff8e1,#fff3cd);border-bottom:1px solid #ffd54f;font-size:12px;color:#795548;}
+    .ai-alert.show{display:flex;}
+    .ai-alert-dot{width:8px;height:8px;border-radius:50%;background:#ff6b35;flex-shrink:0;animation:pulse 1.2s ease-in-out infinite;}
+    @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(1.3)}}
+    .ai-alert-text{font-weight:bold;color:#e65100;}
+    .ai-alert-sub{color:#888;font-size:11px;}
+
+    /* パターンタブ（バーの右側・チャット欄と分離） */
+    .pattern-tabs{display:flex;gap:6px;}
+    .ptab{padding:5px 12px;border-radius:14px;border:1px solid #ddd;background:white;font-size:11px;cursor:pointer;color:#888;transition:all 0.15s;}
+    .ptab.on{background:#00c9a7;color:white;border-color:#00c9a7;}
+
+    /* 本体（開閉） */
+    .c-body{display:flex;flex-direction:column;overflow:hidden;height:calc((100vh - 100px) * 0.8);transition:height 0.45s ease,opacity 0.3s ease;opacity:1;}
+    .c-body.closed{height:0;opacity:0;}
+    /* 3カラム行 */
+    .c-cols{display:flex;flex:1;overflow:hidden;min-height:0;}
+    .col-hist,.col-zunda,.col-chat{min-height:0;}
+
+    /* 左：会話履歴 */
+    .col-hist{width:152px;border-right:1px solid #eee;display:flex;flex-direction:column;flex-shrink:0;background:#fafafa;}
+    .col-hdr{padding:8px 12px;font-size:11px;font-weight:bold;color:#999;border-bottom:1px solid #eee;background:white;}
+    .hist-id{font-size:10px;color:#bbb;padding:6px 12px;border-bottom:1px solid #f0f0f0;}
+    .h-list{flex:1;overflow-y:auto;}
+    .h-item{padding:8px 12px;font-size:11px;color:#555;cursor:pointer;border-bottom:1px solid #f5f5f5;line-height:1.4;}
+    .h-item:hover{background:#f0f0f0;}
+    .h-item.on{background:#e5f7f3;color:#00a98a;border-left:3px solid #00c9a7;}
+    .h-date{font-size:10px;color:#bbb;display:block;margin-top:1px;}
+
+    /* 中央：ずんだもん */
+    .col-zunda{flex:1;display:flex;flex-direction:column;background:linear-gradient(180deg,#e4f7f1,#f5fdfb);border-right:1px solid #eee;position:relative;overflow:hidden;min-width:160px;}
+    .bg-rings{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;}
+    .ring{position:absolute;border-radius:50%;border:1px solid rgba(0,180,140,0.1);}
+    .r1{width:120px;height:120px;animation:sp 22s linear infinite;}
+    .r2{width:190px;height:190px;animation:sp 16s linear infinite reverse;}
+    .r3{width:260px;height:260px;animation:sp 30s linear infinite;}
+    @keyframes sp{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+    .aura{position:absolute;bottom:60px;left:50%;transform:translateX(-50%);width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(0,200,160,0.12),transparent 70%);pointer-events:none;}
+    /* 感情ボタン：右端に縦並び */
+    .emo-bar{position:absolute;right:8px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:6px;z-index:2;}
+    .emo-btn{width:28px;height:28px;border-radius:50%;border:2px solid white;background:white;box-shadow:0 2px 6px rgba(0,0,0,0.1);font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform 0.15s;}
+    .emo-btn:hover,.emo-btn.on{transform:scale(1.2);box-shadow:0 0 0 2px #00c9a7;}
+    /* 吹き出し（上部・矢印は下向き） */
+    .bubble-wrap{padding:10px 14px 14px;flex-shrink:0;position:relative;z-index:1;}
+    .bubble{background:white;border-radius:13px;padding:8px 12px;box-shadow:0 2px 10px rgba(0,0,0,0.09);border:1px solid #c8ede4;position:relative;animation:fu 0.4s ease-out;}
+    @keyframes fu{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
+    .bubble::before{content:'';position:absolute;bottom:-9px;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#c8ede4;}
+    .bubble::after{content:'';position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);border:4px solid transparent;border-top-color:white;}
+    .b-name{font-size:10px;color:#00a98a;font-weight:bold;margin-bottom:2px;}
+    .b-text{font-size:12px;color:#333;line-height:1.5;}
+    .zunda-stage{flex:1;display:flex;align-items:center;justify-content:center;position:relative;z-index:1;}
+    .zunda-fig{display:flex;flex-direction:column;align-items:center;gap:6px;}
+    .zunda-3d{width:100px;height:150px;border-radius:14px;border:1px dashed rgba(0,160,120,0.2);background:rgba(255,255,255,0.08);display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;}
+    .ph-label{position:absolute;top:6px;left:0;right:0;text-align:center;font-size:9px;color:rgba(0,130,100,0.35);font-style:italic;}
+    .zunda-emoji{font-size:52px;line-height:1;animation:fl 3s ease-in-out infinite;filter:drop-shadow(0 4px 8px rgba(0,140,90,0.2));}
+    @keyframes fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+    .zunda-tag{font-size:11px;font-weight:bold;color:#00a98a;background:white;padding:2px 12px;border-radius:16px;box-shadow:0 2px 6px rgba(0,0,0,0.07);}
+    .quick-wrap{padding:0 10px 8px;display:flex;gap:5px;flex-wrap:wrap;justify-content:center;position:relative;z-index:1;}
+    .q-btn{padding:4px 9px;border-radius:14px;border:1px solid #00c9a7;background:white;color:#00a98a;font-size:10px;cursor:pointer;transition:all 0.15s;}
+    .q-btn:hover{background:#00c9a7;color:white;}
+
+    /* 右：チャット履歴 */
+    .col-chat{width:590px;display:flex;flex-direction:column;flex-shrink:0;background:#fafcff;}
+    .chat-msgs{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px;}
+    .msg{display:flex;gap:6px;align-items:flex-start;}
+    .msg.u{flex-direction:row-reverse;}
+    .m-av{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;}
+    .m-av.ai{background:#e3f7f3;} .m-av.u{background:#e3eeff;}
+    .m-bub{max-width:72%;padding:9px 13px;border-radius:12px;font-size:12px;line-height:1.65;}
+    .msg.ai .m-bub{background:#f0f0f0;color:#333;border-radius:3px 14px 14px 14px;}
+    .msg.u .m-bub{background:#00c9a7;color:white;border-radius:14px 3px 14px 14px;}
+    .m-time{font-size:10px;color:#bbb;margin-top:3px;align-self:flex-end;}
+    .ai-first-badge{text-align:center;margin:4px 0;font-size:10px;background:#ff6b35;color:white;padding:2px 8px;border-radius:10px;font-weight:bold;display:inline-block;}
+    .typing{display:flex;gap:3px;align-items:center;padding:7px 11px;background:#f4f4f4;border-radius:3px 12px 12px 12px;width:fit-content;}
+    .dot{width:6px;height:6px;border-radius:50%;background:#bbb;animation:bo 1.2s infinite;}
+    .dot:nth-child(2){animation-delay:0.2s;} .dot:nth-child(3){animation-delay:0.4s;}
+    @keyframes bo{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-5px)}}
+
+    /* 下部：チャット入力（全カラム跨ぎ） */
+    .c-chat-bar{border-top:2px solid #e8e8e8;padding:8px 16px;display:flex;gap:8px;align-items:flex-end;background:white;flex-shrink:0;}
+    .dept-sel{padding:6px 7px;border-radius:6px;border:1px solid #ccc;background:#0097a7;color:white;font-size:11px;cursor:pointer;flex-shrink:0;}
+    .in-field{flex:1;border:1px solid #e0e0e0;border-radius:6px;padding:7px 10px;font-size:11px;resize:none;font-family:inherit;outline:none;min-height:34px;}
+    .in-field:focus{border-color:#00c9a7;}
+    .send-btn{padding:7px 14px;background:#00c9a7;color:white;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-weight:bold;flex-shrink:0;}
+
+    /* ===== ページ本体（オリジナル） ===== */
+    .page-body{flex:1;padding:20px 24px;overflow-y:auto;}
+
+    /* メッセージブロック */
+    .msg-block{background:white;border-radius:10px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 1px 6px rgba(0,0,0,0.06);margin-bottom:14px;}
+    .msg-block-left{display:flex;align-items:center;gap:10px;}
+    .msg-dot{width:10px;height:10px;border-radius:50%;background:#e74c3c;flex-shrink:0;}
+    .msg-block-text{font-size:13px;color:#444;}
+    .msg-block-right{display:flex;align-items:center;gap:20px;}
+    .msg-count-label{font-size:12px;color:#888;}
+    .msg-count-val{font-size:14px;font-weight:bold;color:#e74c3c;}
+    .msg-count-sub{font-size:11px;color:#aaa;}
+
+    /* 下部ダッシュボード */
+    .dash-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+    .dash-card{background:white;border-radius:10px;padding:16px;box-shadow:0 1px 6px rgba(0,0,0,0.06);}
+    .dash-card-title{font-size:13px;font-weight:bold;color:#333;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+    .dash-card-body{font-size:12px;color:#888;line-height:1.8;}
+    .dash-empty{color:#bbb;font-size:12px;padding:10px 0;}
+    .dash-tag{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:bold;margin-right:4px;}
+    .tag-new{background:#e3f7f3;color:#00a98a;}
+    .tag-wait{background:#fff3e0;color:#e67e22;}
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- 左サイドバー（オリジナル） -->
+  <div class="sidebar">
+    <div class="sb-profile">
+      <button class="sb-close">＜</button>
+      <div class="sb-avatar">👤</div>
+      <div class="sb-name">横尾　頼近</div>
+      <div class="sb-id">ID：162267</div>
+      <button class="sb-btn">プロフィール</button>
+    </div>
+
+    <div class="sb-section">スクール全般 <span>▲</span></div>
+    <div class="sb-divider"></div>
+    <div class="sb-item">受講生一覧</div>
+    <div class="sb-item">SSC担当設定</div>
+    <div class="sb-item">【閲覧用】eラン質問・課題添削 <span class="ext">↗</span></div>
+    <div class="sb-divider"></div>
+    <div class="sb-item">受講証CMS <span class="ext">↗</span></div>
+    <div class="sb-item">校舎座席予約 <span class="ext">↗</span></div>
+    <div class="sb-item">全日制版assist <span class="ext">↗</span></div>
+    <div class="sb-divider"></div>
+    <div class="sb-item">受講コース変更</div>
+    <div class="sb-item">学習スケジュールマスタ</div>
+  </div>
+
+  <!-- メイン -->
+  <div class="main">
+
+    <!-- ★ AIコンシェルジュ（最上部ベタづけ・開閉可） ★ -->
+    <div class="concierge-wrap">
+
+      <!-- バー：タイトル＋パターンタブ＋開閉ボタン -->
+      <div class="c-bar">
+        <div class="c-bar-left" onclick="toggleConcierge()">
+          <span class="c-bar-icon">🌿</span>
+          <span class="c-bar-title">AIコンシェルジュ（ずんだもん）</span>
+          <span class="c-bar-badge">β版</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <!-- パターンタブをここに配置（チャット欄と分離） -->
+          <div class="pattern-tabs">
+            <button class="ptab on" onclick="setPattern(1,this)">① ユーザーから話しかける</button>
+            <button class="ptab" onclick="setPattern(2,this)">② AIから話しかける</button>
+          </div>
+          <button class="toggle-btn open" id="toggle-btn" onclick="toggleConcierge()">▲</button>
+        </div>
+      </div>
+
+      <!-- AIからのアラートバナー -->
+      <div class="ai-alert" id="ai-alert">
+        <div class="ai-alert-dot"></div>
+        <span class="ai-alert-text">🌿 ずんだもんからお話しかけしています</span>
+        <span class="ai-alert-sub">— チャット欄をご確認ください</span>
+      </div>
+
+      <!-- 本体（3カラム ＋ 下部入力バー） -->
+      <div class="c-body" id="c-body">
+
+        <!-- 3カラム行 -->
+        <div class="c-cols">
+
+          <!-- 左：会話履歴 -->
+          <div class="col-hist">
+            <div class="col-hdr">📋 会話履歴</div>
+            <div style="padding:6px 10px;border-bottom:1px solid #eee;">
+              <button onclick="newChat()" style="width:100%;padding:5px 0;border-radius:8px;border:1.5px dashed #00c9a7;background:white;color:#00a98a;font-size:11px;font-weight:bold;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;transition:background 0.15s;" onmouseover="this.style.background='#e5f7f3'" onmouseout="this.style.background='white'">＋ 新しい会話</button>
+            </div>
+            <div class="hist-id">会話ID：#2451</div>
+            <div class="h-list">
+              <div class="h-item on">本日の相談<span class="h-date">04/21 16:18</span></div>
+              <div class="h-item">受講生ログイン対応<span class="h-date">04/20 14:32</span></div>
+              <div class="h-item">有給休暇の確認<span class="h-date">04/18 11:05</span></div>
+              <div class="h-item">コース変更手順<span class="h-date">04/15 09:44</span></div>
+              <div class="h-item">座席予約について<span class="h-date">04/12 15:20</span></div>
+            </div>
+          </div>
+
+          <!-- 中央：ずんだもん -->
+          <div class="col-zunda">
+            <div class="bg-rings"><div class="ring r3"></div><div class="ring r2"></div><div class="ring r1"></div></div>
+            <div class="aura"></div>
+            <!-- 吹き出し：上部に配置、矢印は下向き -->
+            <div class="bubble-wrap">
+              <div class="bubble">
+                <div class="b-name">ずんだもん</div>
+                <div class="b-text" id="bubble-text">ご質問はなんのだ？<br>なんでも聞いてほしいのだ！🌿</div>
+              </div>
+            </div>
+            <div class="emo-bar">
+              <div class="emo-btn on">😊</div>
+              <div class="emo-btn">😄</div>
+              <div class="emo-btn">😢</div>
+              <div class="emo-btn">😠</div>
+              <div class="emo-btn">😲</div>
+            </div>
+            <div class="zunda-stage">
+              <div class="zunda-fig">
+                <div class="zunda-3d">
+                  <div class="ph-label">← 3Dモデルが入る →</div>
+                  <div class="zunda-emoji" id="zunda-face">🌿</div>
+                </div>
+                <div class="zunda-tag">ずんだもん</div>
+              </div>
+            </div>
+            <div class="quick-wrap" id="quick-area">
+              <button class="q-btn">受講生がログインできない場合</button>
+              <button class="q-btn">有給休暇の確認方法は？</button>
+            </div>
+          </div>
+
+          <!-- 右：チャット履歴 -->
+          <div class="col-chat">
+            <div class="col-hdr">💬 チャット履歴</div>
+            <div class="chat-msgs" id="chat-msgs">
+              <div id="pat1-msgs">
+                <div class="msg ai"><div class="m-av ai">🌿</div><div><div class="m-bub">ご質問はなんのだ？なんでも聞いてほしいのだ！</div><div class="m-time">16:18</div></div></div>
+                <div class="msg u"><div class="m-av u">👤</div><div><div class="m-bub">受講生がアシストにログインできない場合の対応を教えてください</div><div class="m-time">16:18</div></div></div>
+                <div class="msg ai"><div class="m-av ai">🌿</div><div><div class="m-bub">まずパスワードリセットをお試しくださいなのだ！<br>①管理画面で受講生を検索<br>②「パスワード変更」をクリック<br>③仮パスワードを通知するのだ！</div><div class="m-time">16:18</div></div></div>
+              </div>
+              <div id="pat2-msgs" style="display:none;">
+                <div style="text-align:center;"><span class="ai-first-badge">🌿 ずんだもんから話しかけました</span></div>
+                <div class="msg ai"><div class="m-av ai">🌿</div><div><div class="m-bub">横尾さん、お疲れ様なのだ！🌿<br>今日も何かお手伝いできることはあるのだ？</div><div class="m-time">09:01</div></div></div>
+                <div class="msg ai"><div class="m-av ai">🌿</div><div><div class="typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div><div class="m-time" style="font-size:9px;color:#bbb;margin-top:2px;">入力中…</div></div></div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /c-cols -->
+
+        <!-- 下部：チャット入力（全カラム跨ぎ） -->
+        <div class="c-chat-bar">
+          <select class="dept-sel"><option>DX ▼</option></select>
+          <textarea class="in-field" rows="1" placeholder="質問を入力（Ctrl+Enterで送信）"></textarea>
+          <button class="send-btn">送信</button>
+        </div>
+
+      </div>
+    </div>
+    <!-- /コンシェルジュ -->
+
+    <!-- ページ本体（オリジナル） -->
+    <div class="page-body">
+      <!-- メッセージブロック -->
+      <div class="msg-block">
+        <div class="msg-block-left">
+          <div class="msg-dot"></div>
+          <div class="msg-block-text">担当受講生からの「メッセージ」を確認してください。</div>
+        </div>
+        <div class="msg-block-right">
+          <div>
+            <div class="msg-count-label">未読件数</div>
+            <span class="msg-count-val">0件</span>
+            <span class="msg-count-sub">（0人）</span>
+          </div>
+          <div>
+            <div class="msg-count-label">担当受講生</div>
+            <span class="msg-count-val">0人</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ダッシュボードカード -->
+      <div class="dash-grid">
+        <div class="dash-card">
+          <div class="dash-card-title">📋 未対応タスク</div>
+          <div class="dash-empty">現在未対応のタスクはありません</div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-card-title">📩 最近の質問</div>
+          <div class="dash-card-body">
+            <div style="padding:6px 0;border-bottom:1px solid #f0f0f0;">
+              <span class="dash-tag tag-new">NEW</span>ログインできない受講生の対応方法
+              <div style="font-size:10px;color:#aaa;margin-top:2px;">04/21 16:18</div>
+            </div>
+            <div style="padding:6px 0;">
+              <span class="dash-tag tag-wait">回答済</span>有給休暇の申請について
+              <div style="font-size:10px;color:#aaa;margin-top:2px;">04/20 11:05</div>
+            </div>
+          </div>
+        </div>
+        <div class="dash-card">
+          <div class="dash-card-title">📅 本日の予定</div>
+          <div class="dash-empty">本日の予定はありません</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /layout -->
+
+<script>
+let isOpen = true;
+let chatCount = 2452;
+function newChat() {
+  const list = document.querySelector('.h-list');
+  document.querySelectorAll('.h-item').forEach(i => i.classList.remove('on'));
+  const item = document.createElement('div');
+  item.className = 'h-item on';
+  const now = new Date();
+  const mm = String(now.getMonth()+1).padStart(2,'0');
+  const dd = String(now.getDate()).padStart(2,'0');
+  const hh = String(now.getHours()).padStart(2,'0');
+  const mi = String(now.getMinutes()).padStart(2,'0');
+  item.innerHTML = '新しい会話<span class="h-date">'+mm+'/'+dd+' '+hh+':'+mi+'</span>';
+  list.insertBefore(item, list.firstChild);
+  document.querySelector('.hist-id').textContent = '会話ID：#'+chatCount++;
+  document.getElementById('pat1-msgs').innerHTML = '<div class="msg ai"><div class="m-av ai">🌿</div><div><div class="m-bub">ご質問はなんのだ？なんでも聞いてほしいのだ！</div><div class="m-time">'+hh+':'+mi+'</div></div></div>';
+  document.getElementById('pat2-msgs').innerHTML = '';
+}
+
+function toggleConcierge() {
+  isOpen = !isOpen;
+  document.getElementById('c-body').classList.toggle('closed', !isOpen);
+  const btn = document.getElementById('toggle-btn');
+  btn.classList.toggle('open', isOpen);
+}
+
+function setPattern(n, el) {
+  document.querySelectorAll('.ptab').forEach(t => t.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById('pat1-msgs').style.display = n === 1 ? '' : 'none';
+  document.getElementById('pat2-msgs').style.display = n === 2 ? '' : 'none';
+  if (n === 2) {
+    document.getElementById('ai-alert').classList.add('show');
+    document.getElementById('bubble-text').innerHTML = '横尾さん、お疲れ様なのだ！🌿<br>今日も何かお手伝いできることはあるのだ？';
+    document.getElementById('quick-area').innerHTML =
+      '<button class="q-btn">受講生サポートについて</button><button class="q-btn">今日の未処理タスクを確認</button><button class="q-btn">よくある質問を見る</button>';
+  } else {
+    document.getElementById('ai-alert').classList.remove('show');
+    document.getElementById('bubble-text').innerHTML = 'ご質問はなんのだ？<br>なんでも聞いてほしいのだ！🌿';
+    document.getElementById('quick-area').innerHTML =
+      '<button class="q-btn">受講生がログインできない場合</button><button class="q-btn">有給休暇の確認方法は？</button>';
+  }
+}
+</script>
+</body>
+</html>

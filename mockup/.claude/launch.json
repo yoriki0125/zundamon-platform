@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mockup",
+      "runtimeExecutable": "C:\\Program Files\\nodejs\\node.exe",
+      "runtimeArgs": ["-e", "require('http').createServer((req,res)=>{const fs=require('fs'),path=require('path');let f=path.join('C:/Users/162267/Desktop/zundamon-platform/mockup',req.url==='/'?'index.html':req.url);fs.readFile(f,(e,d)=>{res.writeHead(e?404:200,{'Content-Type':'text/html;charset=utf-8'});res.end(e?'404':d)})}).listen(3333)"],
+      "port": 3333,
+      "autoPort": true
+    }
+  ]
+}
