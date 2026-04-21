@@ -140,34 +140,66 @@
 
     /* ===== AI記事セクション ===== */
     .ai-articles{margin-top:20px;}
-    .sec-header{display:flex;align-items:center;gap:8px;margin-bottom:12px;}
-    .sec-title{font-size:14px;font-weight:bold;color:#333;}
-    .sec-badge{font-size:10px;background:linear-gradient(90deg,#00c9a7,#0097a7);color:white;padding:2px 8px;border-radius:10px;}
-    .sec-sub{font-size:11px;color:#aaa;margin-left:auto;}
+    .sec-header{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+    .sec-title{font-size:15px;font-weight:bold;color:#222;}
+    .sec-badge{font-size:10px;background:linear-gradient(90deg,#00c9a7,#0097a7);color:white;padding:2px 9px;border-radius:10px;font-weight:bold;}
+    .sec-desc{font-size:11px;color:#aaa;margin-bottom:10px;}
+    .cat-tabs{display:flex;gap:6px;margin-bottom:14px;}
+    .ctab{padding:4px 12px;border-radius:14px;border:1px solid #ddd;background:white;font-size:11px;color:#888;cursor:pointer;transition:all 0.15s;}
+    .ctab.on{background:#00c9a7;color:white;border-color:#00c9a7;font-weight:bold;}
+    .ctab:hover:not(.on){background:#f5fdfb;border-color:#00c9a7;color:#00a98a;}
+
+    /* フィーチャー＋ランキング行 */
+    .art-top-row{display:flex;gap:14px;margin-bottom:14px;}
 
     /* フィーチャー記事 */
-    .art-feature{background:white;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,0.06);display:flex;gap:0;overflow:hidden;margin-bottom:14px;}
-    .art-feat-img{width:200px;flex-shrink:0;background:#dde8e6;position:relative;display:flex;align-items:center;justify-content:center;font-size:48px;}
-    .art-feat-new{position:absolute;top:8px;left:8px;background:#00c9a7;color:white;font-size:10px;font-weight:bold;padding:2px 7px;border-radius:4px;}
-    .art-feat-body{flex:1;padding:16px 18px;display:flex;gap:16px;}
-    .art-feat-main{flex:1;}
-    .art-cat{display:inline-block;border:1px solid #ccc;border-radius:4px;font-size:10px;color:#666;padding:1px 6px;margin-bottom:6px;}
-    .art-feat-title{font-size:13px;font-weight:bold;color:#333;line-height:1.55;margin-bottom:8px;}
-    .art-feat-desc{font-size:11px;color:#888;line-height:1.7;}
-    .art-feat-list{width:240px;border-left:1px solid #f0f0f0;padding-left:16px;display:flex;flex-direction:column;gap:8px;justify-content:center;}
-    .art-feat-link{font-size:11px;color:#444;line-height:1.45;cursor:pointer;padding-bottom:8px;border-bottom:1px solid #f5f5f5;}
-    .art-feat-link:last-child{border-bottom:none;}
-    .art-feat-link .afl-cat{font-size:10px;color:#888;margin-bottom:1px;}
-    .art-feat-link:hover .afl-title{color:#00a98a;text-decoration:underline;}
+    .art-feature{flex:1;background:white;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.08);overflow:hidden;cursor:pointer;transition:box-shadow 0.2s;display:flex;flex-direction:column;}
+    .art-feature:hover{box-shadow:0 6px 20px rgba(0,180,140,0.15);}
+    .art-feat-img{height:130px;background:linear-gradient(135deg,#00c9a7 0%,#0097a7 60%,#005f6b 100%);position:relative;display:flex;align-items:center;justify-content:center;font-size:54px;flex-shrink:0;}
+    .art-feat-meta{position:absolute;top:10px;left:10px;display:flex;gap:5px;}
+    .tag-hot{background:#ff6b35;color:white;font-size:10px;font-weight:bold;padding:2px 7px;border-radius:4px;}
+    .tag-new{background:#00c9a7;color:white;font-size:10px;font-weight:bold;padding:2px 7px;border-radius:4px;}
+    .tag-ai{background:#6c63ff;color:white;font-size:10px;font-weight:bold;padding:2px 7px;border-radius:4px;}
+    .art-feat-body{flex:1;padding:14px 16px;display:flex;flex-direction:column;gap:8px;}
+    .art-cat{display:inline-block;border:1.5px solid #00c9a7;border-radius:4px;font-size:10px;color:#00a98a;padding:1px 7px;font-weight:bold;}
+    .art-cat-gray{display:inline-block;border:1px solid #ddd;border-radius:4px;font-size:10px;color:#999;padding:1px 7px;}
+    .art-feat-title{font-size:14px;font-weight:bold;color:#1a1a1a;line-height:1.6;}
+    .art-feat-desc{font-size:11px;color:#666;line-height:1.75;flex:1;}
+    .zunda-comment{display:flex;align-items:flex-start;gap:6px;background:#e8fdf7;border-radius:8px;padding:7px 10px;margin-top:2px;}
+    .zc-icon{font-size:16px;flex-shrink:0;}
+    .zc-text{font-size:10px;color:#008a6e;line-height:1.5;}
+    .art-feat-foot{display:flex;align-items:center;justify-content:space-between;margin-top:6px;}
+    .art-read-time{font-size:10px;color:#bbb;}
+    .art-cta{display:inline-block;padding:5px 14px;border-radius:16px;background:#00c9a7;color:white;font-size:11px;font-weight:bold;transition:background 0.15s;}
+    .art-feature:hover .art-cta{background:#00a98a;}
+
+    /* ランキングサイドバー */
+    .art-ranking{width:240px;flex-shrink:0;background:white;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.08);padding:14px 16px;display:flex;flex-direction:column;gap:0;}
+    .rank-header{font-size:12px;font-weight:bold;color:#333;margin-bottom:10px;display:flex;align-items:center;gap:5px;}
+    .rank-item{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid #f0f0f0;cursor:pointer;}
+    .rank-item:last-child{border-bottom:none;}
+    .rank-item:hover .rank-title{color:#00a98a;text-decoration:underline;}
+    .rank-num{font-size:18px;font-weight:bold;color:#00c9a7;width:22px;flex-shrink:0;line-height:1;}
+    .rank-num.top{color:#ff6b35;}
+    .rank-body{flex:1;}
+    .rank-title{font-size:11px;color:#333;line-height:1.5;font-weight:bold;}
+    .rank-meta{font-size:10px;color:#bbb;margin-top:2px;}
 
     /* グリッド記事 */
     .art-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
-    .art-card{background:white;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,0.06);overflow:hidden;cursor:pointer;transition:box-shadow 0.15s;}
-    .art-card:hover{box-shadow:0 4px 14px rgba(0,0,0,0.10);}
-    .art-thumb{height:100px;background:#dde8e6;display:flex;align-items:center;justify-content:center;font-size:32px;position:relative;}
-    .art-thumb-label{position:absolute;bottom:6px;left:6px;right:6px;background:rgba(0,80,60,0.55);color:white;font-size:9px;line-height:1.4;padding:3px 6px;border-radius:4px;}
-    .art-card-body{padding:10px 12px;}
-    .art-card-title{font-size:11px;color:#333;line-height:1.5;font-weight:bold;}
+    .art-card{background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.07);overflow:hidden;cursor:pointer;transition:all 0.2s;display:flex;flex-direction:column;}
+    .art-card:hover{box-shadow:0 6px 18px rgba(0,180,140,0.15);transform:translateY(-2px);}
+    .art-thumb{height:90px;background:linear-gradient(135deg,#e8f4f1,#d0ede8);display:flex;align-items:center;justify-content:center;font-size:34px;position:relative;}
+    .art-thumb.c1{background:linear-gradient(135deg,#e3f2ff,#cce5ff);}
+    .art-thumb.c2{background:linear-gradient(135deg,#fff3e0,#ffe0b2);}
+    .art-thumb.c3{background:linear-gradient(135deg,#f3e5f5,#e1bee7);}
+    .art-thumb.c4{background:linear-gradient(135deg,#e8f5e9,#c8e6c9);}
+    .art-thumb-badge{position:absolute;top:7px;right:7px;font-size:9px;font-weight:bold;padding:2px 6px;border-radius:4px;}
+    .art-card-body{flex:1;padding:10px 12px;display:flex;flex-direction:column;gap:5px;}
+    .art-card-title{font-size:11px;color:#222;line-height:1.55;font-weight:bold;flex:1;}
+    .art-card-foot{display:flex;align-items:center;justify-content:space-between;margin-top:4px;}
+    .art-card-time{font-size:10px;color:#bbb;}
+    .art-arrow{font-size:11px;color:#00c9a7;font-weight:bold;}
 
     /* メッセージブロック */
     .msg-block{background:white;border-radius:10px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 1px 6px rgba(0,0,0,0.06);margin-bottom:14px;}
@@ -382,60 +414,136 @@
       <!-- AI記事セクション -->
       <div class="ai-articles">
         <div class="sec-header">
-          <span class="sec-title">📝 AI厳選記事</span>
-          <span class="sec-badge">AIおすすめ</span>
-          <span class="sec-sub">あなたの業務に関連する記事をAIがピックアップしました</span>
+          <span class="sec-title">🌿 今週のAI×教育トレンド</span>
+          <span class="sec-badge">AIピックアップ</span>
+        </div>
+        <div class="sec-desc">横尾さんの業務・担当分野をもとに、ずんだもんが厳選した記事です</div>
+        <div class="cat-tabs">
+          <button class="ctab on">すべて</button>
+          <button class="ctab">AI活用</button>
+          <button class="ctab">EdTech</button>
+          <button class="ctab">DX実践</button>
+          <button class="ctab">キャリア</button>
         </div>
 
-        <!-- フィーチャー記事 -->
-        <div class="art-feature">
-          <div class="art-feat-img">
-            🧑‍🏫
-            <span class="art-feat-new">NEW</span>
-          </div>
-          <div class="art-feat-body">
-            <div class="art-feat-main">
-              <span class="art-cat">日本語教師</span>
-              <div class="art-feat-title">【修了生インタビュー：日本語教師】定年に備え日本語教師養成講座を受講。社会的ニーズもやりがいも大きい日本語教育の世界へ</div>
-              <div class="art-feat-desc">セカンドキャリアとして注目される日本語教師。修了生が語る受講のきっかけや現場でのやりがいとは。</div>
+        <!-- フィーチャー＋ランキング行 -->
+        <div class="art-top-row">
+
+          <!-- フィーチャー記事 -->
+          <div class="art-feature">
+            <div class="art-feat-img">
+              🤖
+              <div class="art-feat-meta">
+                <span class="tag-hot">HOT</span>
+                <span class="tag-ai">AI活用</span>
+              </div>
             </div>
-            <div class="art-feat-list">
-              <div class="art-feat-link"><div class="afl-cat">【修了生インタビュー：日本語教師】</div><div class="afl-title">セカンドキャリアは生きがいを感じる…</div></div>
-              <div class="art-feat-link"><div class="afl-cat">【日本語教師】</div><div class="afl-title">外国人学習者との絆を深めるコミュニケーションのヒント</div></div>
-              <div class="art-feat-link"><div class="afl-cat">【修了生インタビュー：日本語教師】</div><div class="afl-title">やさしくて・おもしろい「日本語教師」…</div></div>
-              <div class="art-feat-link"><div class="afl-cat">【修了生インタビュー：日本語教師】</div><div class="afl-title">日本で頑張っている外国人の力になり…</div></div>
+            <div class="art-feat-body">
+              <div>
+                <span class="art-cat">教育DX</span>
+              </div>
+              <div class="art-feat-title">ChatGPTを授業に導入したら、受講生の理解度テストが1.8倍に。現場スタッフが語るAI活用の本音と実践ノウハウ</div>
+              <div class="art-feat-desc">「最初は不安だった」と話す現場スタッフ。しかし導入3ヶ月で受講生の満足度・理解度ともに劇的改善。具体的な使い方から失敗談まで、リアルな声をお届けします。</div>
+              <div class="zunda-comment">
+                <span class="zc-icon">🌿</span>
+                <span class="zc-text">横尾さんの担当受講生数から判断して、今すぐ使えるヒントが多いのだ！特に「フィードバック自動化」の部分は必見なのだ。</span>
+              </div>
+              <div class="art-feat-foot">
+                <span class="art-read-time">📖 約5分で読めます</span>
+                <span class="art-cta">続きを読む →</span>
+              </div>
             </div>
           </div>
-        </div>
+
+          <!-- ランキング -->
+          <div class="art-ranking">
+            <div class="rank-header">🔥 今週の注目記事</div>
+            <div class="rank-item">
+              <div class="rank-num top">1</div>
+              <div class="rank-body">
+                <div class="rank-title">2025年、教育機関のAI導入率が急増中。知らないと乗り遅れるトレンド5選</div>
+                <div class="rank-meta">EdTech · 約3分</div>
+              </div>
+            </div>
+            <div class="rank-item">
+              <div class="rank-num top">2</div>
+              <div class="rank-body">
+                <div class="rank-title">AIが採点・フィードバックを自動化！教師の業務が週10時間削減された実例</div>
+                <div class="rank-meta">DX実践 · 約4分</div>
+              </div>
+            </div>
+            <div class="rank-item">
+              <div class="rank-num">3</div>
+              <div class="rank-body">
+                <div class="rank-title">ChatGPT・Gemini・Claude、教育現場に使うならどれ？2025年版徹底比較</div>
+                <div class="rank-meta">AI活用 · 約6分</div>
+              </div>
+            </div>
+            <div class="rank-item">
+              <div class="rank-num">4</div>
+              <div class="rank-body">
+                <div class="rank-title">「AIに仕事を奪われる？」教育者が知っておきたいAI時代のキャリア論</div>
+                <div class="rank-meta">キャリア · 約4分</div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /art-top-row -->
 
         <!-- グリッド記事 -->
         <div class="art-grid">
           <div class="art-card">
-            <div class="art-thumb">🧍<div class="art-thumb-label">日本語教師に向き・不向きってあるの？</div></div>
+            <div class="art-thumb c1">
+              🎯
+              <span class="art-thumb-badge tag-new">NEW</span>
+            </div>
             <div class="art-card-body">
-              <span class="art-cat">日本語教師</span>
-              <div class="art-card-title">【日本語】日本語教師に向き・不向きってあるの？</div>
+              <span class="art-cat">AI活用</span>
+              <div class="art-card-title">生成AIで学習プランを個別最適化。受講生の継続率が3割上がった具体的な手順とは</div>
+              <div class="art-card-foot">
+                <span class="art-card-time">約4分</span>
+                <span class="art-arrow">→</span>
+              </div>
             </div>
           </div>
           <div class="art-card">
-            <div class="art-thumb">📖<div class="art-thumb-label">模擬授業前の教案作成。Wordで教案作成する際のよくある質問にお答え！</div></div>
+            <div class="art-thumb c2">
+              📊
+              <span class="art-thumb-badge tag-hot">HOT</span>
+            </div>
             <div class="art-card-body">
-              <span class="art-cat">Office｜PC｜日本語教師</span>
-              <div class="art-card-title">【日本語・office】模擬授業前の教案作成。Wordで教案作成する際のよくある質問にお答え！</div>
+              <span class="art-cat">DX実践</span>
+              <div class="art-card-title">スタッフの「なんとなく勘」をデータに変える。教育現場でのAI記録・分析活用入門</div>
+              <div class="art-card-foot">
+                <span class="art-card-time">約5分</span>
+                <span class="art-arrow">→</span>
+              </div>
             </div>
           </div>
           <div class="art-card">
-            <div class="art-thumb">🎤<div class="art-thumb-label">Interview</div></div>
+            <div class="art-thumb c3">
+              💬
+            </div>
             <div class="art-card-body">
-              <span class="art-cat">日本語教師</span>
-              <div class="art-card-title">【修了生インタビュー：日本語】「日本語教師は、日々勉強」その教えを胸に。</div>
+              <span class="art-cat">EdTech</span>
+              <div class="art-card-title">AIチャットボットが受講生の「夜中の不安」に答える時代。導入校の事例と落とし穴</div>
+              <div class="art-card-foot">
+                <span class="art-card-time">約3分</span>
+                <span class="art-arrow">→</span>
+              </div>
             </div>
           </div>
           <div class="art-card">
-            <div class="art-thumb">✍️<div class="art-thumb-label">日本語教師の現実。日本語教師の泣き笑いをお伝え！</div></div>
+            <div class="art-thumb c4">
+              🚀
+            </div>
             <div class="art-card-body">
-              <span class="art-cat">日本語教師</span>
-              <div class="art-card-title">【日本語】日本語教師の現実。日本語教師の泣き笑いをお伝えします！</div>
+              <span class="art-cat-gray">キャリア</span>
+              <div class="art-card-title">AI時代に「教える力」はどう変わるか。10年後も活躍できる教育スタッフの条件</div>
+              <div class="art-card-foot">
+                <span class="art-card-time">約5分</span>
+                <span class="art-arrow">→</span>
+              </div>
             </div>
           </div>
         </div>
