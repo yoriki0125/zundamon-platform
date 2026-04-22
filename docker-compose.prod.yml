@@ -1,0 +1,53 @@
+services:
+  # ずんだもん喋らせ台 (Next.js)
+  app:
+    build:
+      context: .
+      args:
+        # ここでビルド時にIPアドレスを注入する
+        - NEXT_PUBLIC_VOICEVOX_URL=http://10.23.24.128:50021
+    ports:
+      - "3000:3000"
+    environment:
+      # VOICEVOXはDocker内部ネットワーク経由でアクセス
+      VOICEVOX_URL: http://voicevox:50021
+      NEXT_PUBLIC_VOICEVOX_URL: http://10.23.24.128:50021
+    depends_on:
+      voicevox:
+        condition: service_started
+    restart: unless-stopped
+
+  # VOICEVOXエンジン (CPU版)
+  voicevox:
+    image: voicevox/voicevox_engine:cpu-ubuntu20.04-latest
+    ports:
+      - "50021:50021"
+    command:
+      - "gosu"
+      - "user"
+      - "/opt/python/bin/python3"
+      - "./run.py"
+      - "--voicelib_dir"
+      - "/opt/voicevox_core/"
+      - "--runtime_dir"
+      - "/opt/onnxruntime/lib"
+      - "--host"
+      - "0.0.0.0"
+      - "--cors_policy_mode"
+      - "all"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:50021/version || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 300s
+    restart: unless-stopped
+    # GPU版を使う場合は以下に変更:
+    # image: voicevox/voicevox_engine:nvidia-ubuntu20.04-latest
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
