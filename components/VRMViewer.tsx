@@ -12,6 +12,8 @@ export interface VRMViewerHandle {
 
 interface VRMViewerProps {
   className?: string;
+  modelPath?: string;
+  initialRotationY?: number;
 }
 
 /* ── クロマキー合成用シェーダー ─────────────────────────────
@@ -46,13 +48,39 @@ const CHROMA_KEY_FS = `
 
 const CHROMA_COLOR = new THREE.Color('#FF00FF');
 
+function applyInitialPose(vrm: VRM) {
+  if (!vrm.humanoid) return;
+  const lArm = vrm.humanoid.getRawBoneNode('leftUpperArm');
+  if (lArm) lArm.rotation.set(0, 0, Math.PI * 0.42);
+  const rArm = vrm.humanoid.getRawBoneNode('rightUpperArm');
+  if (rArm) rArm.rotation.set(0, 0, -Math.PI * 0.42);
+  vrm.humanoid.getRawBoneNode('leftLowerArm')?.rotation.set(0, 0, 0);
+  vrm.humanoid.getRawBoneNode('rightLowerArm')?.rotation.set(0, 0, 0);
+  vrm.humanoid.getRawBoneNode('leftHand')?.rotation.set(0, 0, 0.2);
+  vrm.humanoid.getRawBoneNode('rightHand')?.rotation.set(0, 0, -0.2);
+}
+
 const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
-  function VRMViewer({ className }, ref) {
+  function VRMViewer({ className, modelPath = '/models/zundamon.vrm', initialRotationY = Math.PI }, ref) {
     const mountRef = useRef<HTMLDivElement>(null);
     const errorRef = useRef<HTMLDivElement>(null);
     const vrmRef = useRef<VRM | null>(null);
     const blendShapesRef = useRef<Record<string, number>>({});
     const mouthOpenRef = useRef(0);
+
+    // Three.js インフラを後から参照するためのref群
+    const sceneRef = useRef<THREE.Scene | null>(null);
+    const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+    const renderTargetRef = useRef<THREE.WebGLRenderTarget | null>(null);
+    const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+    const quadSceneRef = useRef<THREE.Scene | null>(null);
+    const quadCameraRef = useRef<THREE.OrthographicCamera | null>(null);
+    const readyRef = useRef(false);
+    const initialRotationYRef = useRef(initialRotationY);
+    useEffect(() => { initialRotationYRef.current = initialRotationY; }, [initialRotationY]);
+    // 口パク用の"生"モーフターゲット参照 (expression経由だと目にも干渉するため直接操作する)
+    const mouthMorphsRef = useRef<Array<{ influences: number[]; index: number }>>([]);
+    const mouthFallbackExprRef = useRef<string | null>(null);
 
     useImperativeHandle(ref, () => ({
       setBlendShapes(shapes: Record<string, number>) {
@@ -63,6 +91,7 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
       },
     }));
 
+    // ── Three.js インフラのセットアップ（一度だけ） ──────────────────
     useEffect(() => {
       if (!mountRef.current) return;
 
@@ -71,7 +100,7 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
       const height = container.clientHeight;
       const pixelRatio = window.devicePixelRatio;
 
-      // --- Renderer (透明キャンバス — 最終出力はクロマキーで透過制御) ---
+      // Renderer
       const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       renderer.setSize(width, height);
       renderer.setPixelRatio(pixelRatio);
@@ -79,12 +108,11 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.0;
       renderer.autoClear = true;
-      // VRM読み込み完了まで非表示（Tポーズの一瞬表示を防ぐ）
       renderer.domElement.style.opacity = '0';
       renderer.domElement.style.transition = 'opacity 0.3s ease-in';
       container.appendChild(renderer.domElement);
 
-      // --- レンダーターゲット (VRMをクロマキー背景に不透明描画) ---
+      // レンダーターゲット
       const rtW = Math.floor(width * pixelRatio);
       const rtH = Math.floor(height * pixelRatio);
       const renderTarget = new THREE.WebGLRenderTarget(rtW, rtH, {
@@ -93,11 +121,11 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
         magFilter: THREE.LinearFilter,
       });
 
-      // --- VRM シーン (クロマキー背景) ---
+      // VRM シーン
       const scene = new THREE.Scene();
       scene.background = CHROMA_COLOR;
 
-      // --- クロマキー合成シーン ---
+      // クロマキー合成シーン
       const quadMaterial = new THREE.ShaderMaterial({
         uniforms: {
           tDiffuse: { value: renderTarget.texture },
@@ -114,83 +142,34 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
       quadScene.add(quadMesh);
       const quadCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
-      // --- Camera ---
+      // Camera
       const camera = new THREE.PerspectiveCamera(25, width / height, 0.1, 20);
       camera.position.set(0, 0.9, 4.5);
       camera.lookAt(0, 0.9, 0);
 
-      // --- Lights ---
+      // Lights
       const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 2.3);
       hemiLight.position.set(0, 10, 0);
       scene.add(hemiLight);
-
       const dirLight = new THREE.DirectionalLight(0xffffff, 2.0);
       dirLight.position.set(1, 3, 2);
       scene.add(dirLight);
 
-      // --- Load VRM ---
-      const loader = new GLTFLoader();
-      loader.register((parser) => new VRMLoaderPlugin(parser));
+      // refs に保存
+      sceneRef.current = scene;
+      rendererRef.current = renderer;
+      renderTargetRef.current = renderTarget;
+      cameraRef.current = camera;
+      quadSceneRef.current = quadScene;
+      quadCameraRef.current = quadCamera;
+      readyRef.current = true;
 
-      loader.load(
-        '/models/zundamon.vrm',
-        (gltf) => {
-          const vrm: VRM = gltf.userData.vrm;
-          VRMUtils.removeUnnecessaryVertices(gltf.scene);
-          VRMUtils.combineSkeletons(gltf.scene);
-
-          vrm.scene.rotation.y = Math.PI;
-          scene.add(vrm.scene);
-          vrmRef.current = vrm;
-
-          // MToon マテリアルの更新フラグ
-          vrm.scene.traverse((obj) => {
-            if ((obj as THREE.Mesh).isMesh) {
-              const mesh = obj as THREE.Mesh;
-              const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-              for (const mat of mats) mat.needsUpdate = true;
-            }
-          });
-
-          // 初回ボーンポーズを即座に適用（Tポーズ防止）
-          if (vrm.humanoid) {
-            const lArm = vrm.humanoid.getRawBoneNode('leftUpperArm');
-            if (lArm) lArm.rotation.set(0, 0, Math.PI * 0.42);
-            const rArm = vrm.humanoid.getRawBoneNode('rightUpperArm');
-            if (rArm) rArm.rotation.set(0, 0, -Math.PI * 0.42);
-            vrm.humanoid.getRawBoneNode('leftLowerArm')?.rotation.set(0, 0, 0);
-            vrm.humanoid.getRawBoneNode('rightLowerArm')?.rotation.set(0, 0, 0);
-            vrm.humanoid.getRawBoneNode('leftHand')?.rotation.set(0, 0, 0.2);
-            vrm.humanoid.getRawBoneNode('rightHand')?.rotation.set(0, 0, -0.2);
-          }
-          vrm.update(0);
-
-          // 初回フレームを描画してからキャンバスを表示
-          renderer.setRenderTarget(renderTarget);
-          renderer.setClearColor(CHROMA_COLOR, 1);
-          renderer.clear();
-          renderer.render(scene, camera);
-          renderer.setRenderTarget(null);
-          renderer.setClearColor(0x000000, 0);
-          renderer.clear();
-          renderer.render(quadScene, quadCamera);
-          renderer.domElement.style.opacity = '1';
-
-          errorRef.current?.classList.add('hidden');
-        },
-        undefined,
-        (error) => {
-          console.error('[VRMViewer] VRM load failed:', error);
-          errorRef.current?.classList.remove('hidden');
-        }
-      );
-
-      // --- まばたき状態 ---
+      // まばたき状態
       let nextBlinkTime = 2 + Math.random() * 3;
       let blinkPhase: 'idle' | 'closing' | 'opening' = 'idle';
       let blinkTimer = 0;
 
-      // --- アニメーションループ ---
+      // アニメーションループ
       let lastTime = performance.now();
       let elapsed = 0;
       let frameId: number;
@@ -205,7 +184,6 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
 
         const vrm = vrmRef.current;
         if (vrm) {
-          // --- まばたき ---
           if (vrm.expressionManager) {
             nextBlinkTime -= delta;
             if (blinkPhase === 'idle' && nextBlinkTime <= 0) {
@@ -228,12 +206,10 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
               }
             }
 
-            // 全表情をリセット
             for (const expr of vrm.expressionManager.expressions) {
               vrm.expressionManager.setValue(expr.expressionName, 0);
             }
 
-            // まばたき
             if (blinkValue > 0) {
               let applied = false;
               for (const name of ['blink', 'Blink']) {
@@ -246,27 +222,29 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
               }
             }
 
-            // 感情 BlendShape
             for (const [name, value] of Object.entries(blendShapesRef.current)) {
               try { vrm.expressionManager.setValue(name, value); } catch { /* */ }
             }
+          }
 
-            // 口パク
-            const mouthVal = mouthOpenRef.current;
-            if (mouthVal > 0.01) {
-              for (const name of ['aa', 'a', 'mouth_a', 'A']) {
-                try { vrm.expressionManager.setValue(name, mouthVal); break; }
-                catch { /* */ }
-              }
-            }
+          // 口パク (vrm.update 前にフォールバック expression を設定)
+          const mouthVal = mouthOpenRef.current;
+          if (mouthVal > 0.01 && mouthMorphsRef.current.length === 0 && mouthFallbackExprRef.current) {
+            try { vrm.expressionManager?.setValue(mouthFallbackExprRef.current, mouthVal); } catch { /* */ }
           }
 
           vrm.update(delta);
 
-          // --- ボーンアニメーション ---
+          // 口パク (直接モーフがあるモデル): expressionManager 後に上書きして目への
+          // 干渉を防ぐ。'aa' 等のコンパウンド表情に目成分が含まれるモデル対策。
+          if (mouthVal > 0.01 && mouthMorphsRef.current.length > 0) {
+            for (const { influences, index } of mouthMorphsRef.current) {
+              influences[index] = mouthVal;
+            }
+          }
+
           if (vrm.humanoid) {
             const breathVal = Math.sin(elapsed * 1.5);
-
             vrm.humanoid.getRawBoneNode('spine')?.rotation.set(breathVal * 0.015, 0, 0);
             vrm.humanoid.getRawBoneNode('chest')?.rotation.set(breathVal * 0.01, 0, 0);
 
@@ -278,7 +256,6 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
 
             const lArm = vrm.humanoid.getRawBoneNode('leftUpperArm');
             if (lArm) lArm.rotation.set(0, 0, Math.PI * 0.42 + Math.sin(elapsed * 1.5 + 1) * 0.02);
-
             const rArm = vrm.humanoid.getRawBoneNode('rightUpperArm');
             if (rArm) rArm.rotation.set(0, 0, -(Math.PI * 0.42 + Math.sin(elapsed * 1.5) * 0.02));
 
@@ -297,13 +274,11 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
           }
         }
 
-        // Pass 1: VRMシーンをレンダーターゲットに描画（クロマキー背景で不透明）
         renderer.setRenderTarget(renderTarget);
         renderer.setClearColor(CHROMA_COLOR, 1);
         renderer.clear();
         renderer.render(scene, camera);
 
-        // Pass 2: クロマキー合成してメインキャンバスに出力（モデル=不透明、背景=透明）
         renderer.setRenderTarget(null);
         renderer.setClearColor(0x000000, 0);
         renderer.clear();
@@ -311,7 +286,7 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
       };
       animate();
 
-      // --- Resize ---
+      // Resize
       const handleResize = () => {
         const w = container.clientWidth;
         const h = container.clientHeight;
@@ -324,10 +299,10 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
       };
       window.addEventListener('resize', handleResize);
 
-      // --- ドラッグで回転 ---
+      // ドラッグで回転
       let isDragging = false;
       let prevX = 0;
-      let rotationY = Math.PI;
+      let rotationY = initialRotationYRef.current;
 
       const onMouseDown = (e: MouseEvent) => { isDragging = true; prevX = e.clientX; };
       const onMouseMove = (e: MouseEvent) => {
@@ -343,6 +318,7 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
       window.addEventListener('mouseup', onMouseUp);
 
       return () => {
+        readyRef.current = false;
         cancelAnimationFrame(frameId);
         window.removeEventListener('resize', handleResize);
         renderer.domElement.removeEventListener('mousedown', onMouseDown);
@@ -354,8 +330,116 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
         if (container.contains(renderer.domElement)) {
           container.removeChild(renderer.domElement);
         }
+        sceneRef.current = null;
+        rendererRef.current = null;
+        renderTargetRef.current = null;
+        cameraRef.current = null;
+        quadSceneRef.current = null;
+        quadCameraRef.current = null;
       };
     }, []);
+
+    // ── モデルの読み込み（modelPath が変わるたびに実行） ─────────────
+    useEffect(() => {
+      // インフラが未初期化の場合は少し待つ（初回は useEffect の順序で問題ない）
+      const load = () => {
+        const scene = sceneRef.current;
+        const renderer = rendererRef.current;
+        const renderTarget = renderTargetRef.current;
+        const camera = cameraRef.current;
+        const quadScene = quadSceneRef.current;
+        const quadCamera = quadCameraRef.current;
+        if (!scene || !renderer || !renderTarget || !camera || !quadScene || !quadCamera) return;
+
+        // 既存モデルをフェードアウトして削除
+        renderer.domElement.style.opacity = '0';
+        if (vrmRef.current) {
+          scene.remove(vrmRef.current.scene);
+          vrmRef.current = null;
+        }
+        mouthMorphsRef.current = [];
+        mouthFallbackExprRef.current = null;
+
+        errorRef.current?.classList.add('hidden');
+
+        const loader = new GLTFLoader();
+        loader.register((parser) => new VRMLoaderPlugin(parser));
+
+        loader.load(
+          modelPath,
+          (gltf) => {
+            const vrm: VRM = gltf.userData.vrm;
+            VRMUtils.removeUnnecessaryVertices(gltf.scene);
+            VRMUtils.combineSkeletons(gltf.scene);
+
+            vrm.scene.rotation.y = initialRotationYRef.current;
+            scene.add(vrm.scene);
+            vrmRef.current = vrm;
+
+            // 口モーフターゲットを収集 (目に干渉しない口単体のモーフだけ選ぶ)
+            const mouthMorphs: Array<{ influences: number[]; index: number }> = [];
+            const MOUTH_RE = /(^|[_\-\s])(a|aa|ah|A|Fcl_MTH_A|mouth[_\-]?a|vrc\.v_aa|jaw[_\-]?open|あ)($|[_\-\s])/i;
+            const EYE_RE = /(eye|eyelid|blink|lid|brow|eyebrow|まぶた|目)/i;
+
+            vrm.scene.traverse((obj) => {
+              const mesh = obj as THREE.Mesh;
+              if ((mesh as THREE.Mesh).isMesh) {
+                const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+                for (const mat of mats) mat.needsUpdate = true;
+              }
+
+              const dict = mesh.morphTargetDictionary;
+              const infl = mesh.morphTargetInfluences;
+              if (!dict || !infl) return;
+
+              for (const [name, idx] of Object.entries(dict)) {
+                if (EYE_RE.test(name)) continue;
+                if (MOUTH_RE.test(name) || /^(a|A|あ)$/.test(name)) {
+                  mouthMorphs.push({ influences: infl, index: idx });
+                }
+              }
+            });
+            mouthMorphsRef.current = mouthMorphs;
+
+            // 直接モーフが無い場合は expression の mouth 系を探してフォールバック指定
+            if (mouthMorphs.length === 0 && vrm.expressionManager) {
+              const exprNames = vrm.expressionManager.expressions.map((e) => e.expressionName);
+              const candidate = ['aa', 'a', 'A', 'oh', 'ou', 'ih', 'ee'].find((n) => exprNames.includes(n));
+              mouthFallbackExprRef.current = candidate ?? null;
+            }
+
+            applyInitialPose(vrm);
+            vrm.update(0);
+
+            // 初回フレームを描画してからフェードイン
+            renderer.setRenderTarget(renderTarget);
+            renderer.setClearColor(CHROMA_COLOR, 1);
+            renderer.clear();
+            renderer.render(scene, camera);
+            renderer.setRenderTarget(null);
+            renderer.setClearColor(0x000000, 0);
+            renderer.clear();
+            renderer.render(quadScene, quadCamera);
+            renderer.domElement.style.opacity = '1';
+
+            errorRef.current?.classList.add('hidden');
+          },
+          undefined,
+          (error) => {
+            console.error('[VRMViewer] VRM load failed:', error);
+            errorRef.current?.classList.remove('hidden');
+          }
+        );
+      };
+
+      if (readyRef.current) {
+        load();
+      } else {
+        // インフラ初期化を待つ（通常は同一フレーム内で完了）
+        const timer = setTimeout(load, 0);
+        return () => clearTimeout(timer);
+      }
+    }, [modelPath]);
 
     return (
       <div className={`relative w-full h-full ${className ?? ''}`}>
@@ -367,7 +451,7 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
           <p className="text-xl font-bold">VRMモデルが見つかりません</p>
           <p className="text-sm text-muted-foreground">
             <code className="bg-muted px-2 py-1 rounded text-xs">
-              public/models/zundamon.vrm
+              {modelPath}
             </code>{' '}
             を配置してリロードしてください
           </p>
