@@ -76,8 +76,22 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [voicevoxOk, setVoicevoxOk] = useState<boolean | null>(null);
+  // 隠しコマンド: Ctrl+Shift+D で右のコントロールパネルをトグル
+  const [showControlPanel, setShowControlPanel] = useState(false);
 
   const volume = useLipSyncVolume(audioEl);
+
+  // 隠しコマンドの登録
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && (e.key === 'D' || e.key === 'd')) {
+        e.preventDefault();
+        setShowControlPanel((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   useEffect(() => {
     const ref = speakingCharRef.current === 'zundamon' ? zundamonRef : metanRef;
@@ -259,7 +273,15 @@ export default function Home() {
         )}
       </div>
 
-      {/* ── RIGHT: コントロールパネル ─────────────────────────────── */}
+      {/* ── 隠しコマンドヒント (非表示時のみ) ───────────────────── */}
+      {!showControlPanel && (
+        <div className="absolute bottom-2 right-2 z-30 text-[10px] text-gray-400/60 select-none pointer-events-none">
+          Ctrl+Shift+D
+        </div>
+      )}
+
+      {/* ── RIGHT: コントロールパネル (隠しコマンドで表示/非表示) ── */}
+      {showControlPanel && (
       <aside className={cn(
         'flex flex-col w-96 shrink-0 h-full',
         'bg-white border-l border-[var(--zunda-panel-border)]',
@@ -303,6 +325,7 @@ export default function Home() {
 
         <div className="h-0.5 w-full bg-gradient-to-r from-transparent via-[var(--zunda-panel-border)] to-transparent" />
       </aside>
+      )}
     </main>
   );
 }
