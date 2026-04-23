@@ -93,6 +93,10 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
     const jumpTimerRef    = useRef(0);
     const jumpActiveRef   = useRef(false);
     const jumpProgressRef = useRef(0);
+    // 悩みポーズ用 (jump15 プリセット内)
+    const thinkTimerRef    = useRef(0);
+    const thinkActiveRef   = useRef(false);
+    const thinkProgressRef = useRef(0);
     // 口パク用の"生"モーフターゲット参照 (expression経由だと目にも干渉するため直接操作する)
     const mouthMorphsRef = useRef<Array<{ influences: number[]; index: number }>>([]);
     const mouthFallbackExprRef = useRef<string | null>(null);
@@ -304,15 +308,22 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
                   const t = spinProgressRef.current;
                   const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
                   vrm.scene.rotation.y = spinStartRotRef.current + ease * Math.PI * 2;
-                  // 右足を膝上まで持ち上げる
                   const legLift = Math.sin(t * Math.PI);
                   vrm.humanoid?.getRawBoneNode('rightUpperLeg')
-                    ?.rotation.set(legLift * 0.9, 0, 0);   // 正→膝が前に上がる
+                    ?.rotation.set(legLift * 0.9, 0, 0);
                   vrm.humanoid?.getRawBoneNode('rightLowerLeg')
-                    ?.rotation.set(-legLift * 1.0, 0, 0);  // 負→ひざ折りかかとが後ろへ
+                    ?.rotation.set(-legLift * 1.0, 0, 0);
                   vrm.humanoid?.getRawBoneNode('rightFoot')
                     ?.rotation.set(legLift * 0.3, 0, 0);
                 }
+              }
+              // ── つまさきとんとん (スピン中は停止) ──
+              if (!spinActiveRef.current) {
+                const tapFreq = elapsed * Math.PI * 3.0; // 約1.5Hz
+                const lTap = Math.max(0, Math.sin(tapFreq)) * 0.15;
+                const rTap = Math.max(0, Math.sin(tapFreq + Math.PI)) * 0.15;
+                vrm.humanoid.getRawBoneNode('leftFoot')?.rotation.set(-lTap, 0, 0);
+                vrm.humanoid.getRawBoneNode('rightFoot')?.rotation.set(-rTap, 0, 0);
               }
             }
 
@@ -386,6 +397,36 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
                       vrm.humanoid.getRawBoneNode(`${side}UpperLeg`)?.rotation.set( bend * 0.4, 0, 0);
                       vrm.humanoid.getRawBoneNode(`${side}LowerLeg`)?.rotation.set(-bend,       0, 0);
                     }
+                  }
+                }
+              }
+
+              // ── 悩みポーズ (ジャンプ中は中断) ──────────────────────────
+              if (jumpActiveRef.current) {
+                thinkActiveRef.current = false;
+              } else {
+                if (!thinkActiveRef.current) thinkTimerRef.current += delta;
+                if (thinkTimerRef.current >= 8 && !thinkActiveRef.current) {
+                  thinkTimerRef.current = 0;
+                  thinkActiveRef.current = true;
+                  thinkProgressRef.current = 0;
+                }
+              }
+              if (thinkActiveRef.current) {
+                thinkProgressRef.current += delta / 2.2;
+                if (thinkProgressRef.current >= 1) {
+                  thinkActiveRef.current = false;
+                } else {
+                  const s = Math.sin(thinkProgressRef.current * Math.PI);
+                  // 右腕を顎付近へ持ち上げる
+                  rArm?.rotation.set(s * 0.65, s * -0.25, -(Math.PI * 0.42 - s * 0.85));
+                  vrm.humanoid.getRawBoneNode('rightLowerArm')?.rotation.set(-s * 1.1, s * 0.5, 0);
+                  vrm.humanoid.getRawBoneNode('rightHand')?.rotation.set(0, 0, -s * 0.3);
+                  // 頭を右に傾けて少し前傾き
+                  if (head) {
+                    head.rotation.x = s * 0.07;
+                    head.rotation.y = Math.sin(elapsed * 0.4) * 0.04 + s * 0.05;
+                    head.rotation.z = -s * 0.13;
                   }
                 }
               }
