@@ -36,9 +36,14 @@
 
     <script src="/widget/zundamon-widget-sdk.js"></script>
     <script>
+      // file:// で開かれた場合は dev server を使う
+      const origin = window.location.protocol === 'file:'
+        ? 'http://localhost:3000'
+        : window.location.origin;
+
       const widget = window.ZundamonWidget.init({
         container: '#ai-concierge-root',
-        baseUrl: window.location.origin,
+        baseUrl: origin,
         mode: 'embedded',
         minHeight: 680,
         maxHeight: 900,

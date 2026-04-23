@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Character, Emotion } from '@/lib/types';
 import {
   EMOTION_LABELS,
@@ -37,7 +37,7 @@ const EMOTION_BY_NUMBER: Record<string, Emotion> = {
 };
 
 const ZUNDAMON_PREFIXES = ['ずんだ', 'ずんだもん', 'Z', 'z'];
-const METAN_PREFIXES = ['めたん', 'メタン', '四国めたん', 'M', 'm'];
+const METAN_PREFIXES = ['めたん', 'メタン', '四国めたん', '四国めた', 'M', 'm'];
 
 function toHalfWidth(c: string): string {
   return c.charCodeAt(0) > 127 ? String.fromCharCode(c.charCodeAt(0) - 0xFEE0) : c;
@@ -67,7 +67,13 @@ function parseScript(script: string, defaultEmotion: Emotion): DialogueLine[] {
       const pm = line.match(prefixRe);
       if (pm) {
         const character: Character = ZUNDAMON_PREFIXES.includes(pm[1]) ? 'zundamon' : 'metan';
-        const [text, emotion] = extractEmotion(pm[2].trim(), defaultEmotion);
+        let [text, emotion] = extractEmotion(pm[2].trim(), defaultEmotion);
+        // _z1 / _m2 形式のサフィックスも処理（プレフィックスと混在する場合）
+        const sfx = text.match(suffixRe);
+        if (sfx) {
+          emotion = EMOTION_BY_NUMBER[sfx[3]] ?? emotion;
+          text = sfx[1].trim();
+        }
         return [{ character, text, emotion }];
       }
       // 形式2: テキスト_z2 / テキスト_m3
@@ -89,6 +95,10 @@ const PLACEHOLDER = `ずんだ: こんにちはなのだ！(2)
 export default function DialoguePanel({ onPlay, isLoading, error }: DialoguePanelProps) {
   const [script, setScript] = useState('');
   const [emotion, setEmotion] = useState<Emotion>('neutral');
+  const [aiTopic, setAiTopic] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const conversationIdRef = useRef<string>('');
 
   const parsed = parseScript(script, emotion);
   const canPlay = parsed.length > 0 && !isLoading;
@@ -103,8 +113,86 @@ export default function DialoguePanel({ onPlay, isLoading, error }: DialoguePane
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleSubmit();
   };
 
+  const handleAiGenerate = async () => {
+    if (!aiTopic.trim() || aiLoading) return;
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const res = await fetch('/api/dify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic: aiTopic, conversationId: conversationIdRef.current }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'AIエラー');
+      conversationIdRef.current = data.conversationId ?? '';
+      setAiTopic('');
+      const lines = parseScript(data.script, emotion);
+      if (lines.length > 0) {
+        onPlay(lines);
+      } else {
+        setScript(data.script);
+      }
+    } catch (err) {
+      setAiError(err instanceof Error ? err.message : '不明なエラー');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleAiKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleAiGenerate();
+  };
+
   return (
     <div className="flex flex-col gap-4">
+      {/* AI生成セクション */}
+      <div className="flex items-center gap-2">
+        <div className="w-1 h-4 bg-violet-400 rounded-full shadow-[0_0_8px_#a78bfa]" />
+        <span className="text-xs font-bold tracking-widest text-violet-500 uppercase">AI に質問</span>
+        <span className="ml-auto text-[10px] text-muted-foreground/60">Dify AI</span>
+      </div>
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={aiTopic}
+          onChange={(e) => setAiTopic(e.target.value)}
+          onKeyDown={handleAiKeyDown}
+          placeholder="質問を入力 (例: テストの作り方は?)"
+          className={cn(
+            'flex-1 rounded-xl px-3 py-2 text-sm',
+            'bg-[var(--zunda-surface)] text-foreground placeholder:text-muted-foreground/40',
+            'border border-[var(--zunda-panel-border)]',
+            'focus:outline-none focus:border-violet-400',
+            'transition-all duration-200',
+          )}
+        />
+        <button
+          type="button"
+          onClick={handleAiGenerate}
+          disabled={!aiTopic.trim() || aiLoading}
+          className={cn(
+            'px-3 py-2 rounded-xl text-sm font-bold transition-all duration-200',
+            'disabled:opacity-40 disabled:cursor-not-allowed',
+            aiTopic.trim() && !aiLoading
+              ? 'bg-violet-500 text-white hover:brightness-110 hover:shadow-lg hover:shadow-violet-300'
+              : 'bg-[var(--zunda-surface)] text-muted-foreground border border-[var(--zunda-panel-border)]',
+          )}
+        >
+          {aiLoading ? (
+            <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin block" />
+          ) : '✨ 生成'}
+        </button>
+      </div>
+      {aiError && (
+        <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-red-50 border border-red-200">
+          <span className="text-red-500 text-sm font-bold">!</span>
+          <p className="text-red-600 text-xs">{aiError}</p>
+        </div>
+      )}
+
+      <div className="h-px bg-[var(--zunda-panel-border)]" />
+
       {/* 感情 (デフォルト) */}
       <div className="flex items-center gap-2">
         <div className="w-1 h-4 bg-[var(--zunda-green)] rounded-full shadow-[0_0_8px_var(--zunda-green)]" />

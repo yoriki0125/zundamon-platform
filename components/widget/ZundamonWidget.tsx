@@ -130,6 +130,7 @@ export default function ZundamonWidget() {
     characterName: searchParams.get('characterName') ?? 'ずんだもん',
     defaultEmotion: isEmotion(searchParams.get('emotion')) ? (searchParams.get('emotion') as Emotion) : 'neutral',
     showDebugPanel: searchParams.get('debug') === '1',
+    aiEndpoint: searchParams.get('aiEndpoint') ?? '/api/widget-chat',
   }));
 
   // ── 会話履歴（複数セッション） ──────────────────────────────────
@@ -151,6 +152,8 @@ export default function ZundamonWidget() {
   const [error, setError] = useState<string | null>(null);
   const [voicevoxOk, setVoicevoxOk] = useState<boolean | null>(null);
   const [panelOpen, setPanelOpen] = useState(true);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [mobileChatOpen, setMobileChatOpen] = useState(false);
   const [showControlPanel, setShowControlPanel] = useState<boolean>(!!config.showDebugPanel);
   const [bubble, setBubble] = useState<{ speaker: Character; text: string } | null>(null);
   const [viewerEmotion, setViewerEmotion] = useState<Emotion>('neutral');
@@ -370,7 +373,9 @@ export default function ZundamonWidget() {
           try {
             const r = await synthesize(payload.spokenText, payload.voicevoxStyleId);
             audioBlob = r.audioBlob;
-          } catch { /* VOICEVOX 未起動でも継続 */ }
+          } catch (e) {
+            console.warn('[widget] VOICEVOX synthesis failed:', e);
+          }
           return { line, blendShapes: payload.blendShapes, spokenText: payload.spokenText, audioBlob };
         } catch (e) {
           console.error('[widget] prefetch failed', e);
@@ -404,7 +409,7 @@ export default function ZundamonWidget() {
     }));
     for (const m of msgs) emit('zundamon:answerShown', m);
 
-    // 3. 事前生成 URL を使って順次再生
+    // 3. 事前生成 URL を使って順次再生（1行ずつ吹き出し＋音声）
     const urls: string[] = [];
     try {
       for (const p of prepared) {
@@ -428,6 +433,9 @@ export default function ZundamonWidget() {
             audio.play().catch(() => resolve());
           });
           setAudioEl(null);
+        } else {
+          // 音声なし時も吹き出しを見せるため最低2秒待機
+          await new Promise<void>((resolve) => setTimeout(resolve, 2000));
         }
         ref.current?.setBlendShapes({ neutral: 1.0 });
         other.current?.setListening(false);
@@ -525,7 +533,11 @@ export default function ZundamonWidget() {
 
       switch (data.type) {
         case 'zundamon:init': {
-          const next = (data.payload ?? {}) as WidgetInitConfig;
+          const raw = (data.payload ?? {}) as WidgetInitConfig;
+          // undefined を含むキーは既存値を上書きしないよう除外
+          const next = Object.fromEntries(
+            Object.entries(raw).filter(([, v]) => v !== undefined)
+          ) as WidgetInitConfig;
           parentOriginRef.current = next.parentOrigin || event.origin || parentOriginRef.current;
           contextRef.current = next.context ?? contextRef.current;
           setConfig((prev) => ({ ...prev, ...next, context: next.context ?? prev.context }));
@@ -570,18 +582,29 @@ export default function ZundamonWidget() {
   // ── Render ──────────────────────────────────────────────────────
   return (
     <div className="min-h-screen w-full flex flex-col" style={{ background: '#f5f6f8' }}>
-      <div className="concierge-wrap flex flex-col flex-1 bg-white shadow-[0_2px_12px_rgba(0,0,0,0.07)] border-b-2 border-gray-200 overflow-hidden">
+      <div className="concierge-wrap flex flex-col flex-1 bg-white shadow-[0_8px_32px_rgba(0,0,0,0.08)] overflow-hidden rounded-b-[24px] md:rounded-b-[28px]">
         {/* ── タイトルバー (プルダウン開閉) ─────────────────────────── */}
-        <div className="c-bar flex items-center justify-between px-4 py-2 select-none border-b border-gray-100">
+        <div className="c-bar flex items-center justify-between px-3 md:px-4 py-2 select-none border-b border-gray-100 gap-2">
+          {/* モバイル: サイドバー開閉ボタン */}
+          <button
+            type="button"
+            onClick={() => setMobileSidebarOpen((v) => !v)}
+            className="md:hidden w-8 h-8 rounded-lg flex items-center justify-center text-gray-600 hover:bg-gray-100 flex-shrink-0"
+            aria-label="会話履歴"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
           <div
-            className="flex items-center gap-2 cursor-pointer"
+            className="flex items-center gap-2 cursor-pointer flex-1 min-w-0"
             onClick={() => setPanelOpen((v) => !v)}
           >
-            <span className="text-lg">🌿💜</span>
-            <span className="text-sm font-bold text-gray-800">
-              {config.title ?? 'AIコンシェルジュ'}（ずんだもん × 四国めたん）
+            <span className="text-xs md:text-sm font-bold text-gray-800 truncate">
+              <span className="hidden sm:inline">{config.title ?? 'AIコンシェルジュ'}（ずんだもん × 四国めたん）</span>
+              <span className="sm:hidden">{config.title ?? 'AIコンシェルジュ'}</span>
             </span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-teal-50 text-teal-700">β版</span>
+            <span className="hidden sm:inline text-[10px] px-2 py-0.5 rounded-full bg-teal-50 text-teal-700">β版</span>
             {showControlPanel && (
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 font-bold">
                 DEBUG
@@ -606,15 +629,32 @@ export default function ZundamonWidget() {
         <div
           className="flex flex-col transition-all duration-500 ease-in-out overflow-hidden"
           style={{
-            height: panelOpen ? 'calc(100vh - 40px)' : '0px',
+            height: panelOpen ? 'calc(100dvh - 40px)' : '0px',
             opacity: panelOpen ? 1 : 0,
           }}
         >
-          <div className="flex flex-1 min-h-0 overflow-hidden">
-            {/* ── 左: 会話履歴 ────────────────────────────────────── */}
-            <div className="w-[160px] shrink-0 flex flex-col border-r border-gray-200 bg-gray-50">
-              <div className="px-3 py-2 text-[11px] font-bold text-gray-400 border-b border-gray-200 bg-white">
-                📋 会話履歴
+          <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden relative">
+            {/* ── 左: 会話履歴 (SPではドロワー) ──────────────────── */}
+            {mobileSidebarOpen && (
+              <div
+                className="md:hidden fixed inset-0 bg-black/40 z-40 backdrop-blur-sm"
+                onClick={() => setMobileSidebarOpen(false)}
+              />
+            )}
+            <div className={cn(
+              'shrink-0 flex flex-col border-r border-gray-200 bg-gray-50',
+              'md:w-[160px] md:relative md:translate-x-0',
+              'fixed md:static inset-y-0 left-0 w-[260px] z-50 transition-transform duration-300 shadow-2xl md:shadow-none',
+              mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
+            )}>
+              <div className="px-3 py-2 text-[11px] font-bold text-gray-400 border-b border-gray-200 bg-white flex items-center justify-between">
+                <span>📋 会話履歴</span>
+                <button
+                  type="button"
+                  onClick={() => setMobileSidebarOpen(false)}
+                  className="md:hidden text-gray-400 hover:text-gray-600 text-lg leading-none"
+                  aria-label="閉じる"
+                >×</button>
               </div>
               <div className="px-2 py-2 border-b border-gray-200">
                 <button
@@ -630,7 +670,7 @@ export default function ZundamonWidget() {
                   <button
                     key={c.id}
                     type="button"
-                    onClick={() => setActiveConvId(c.id)}
+                    onClick={() => { setActiveConvId(c.id); setMobileSidebarOpen(false); }}
                     className={`w-full text-left px-3 py-2 border-b border-gray-100 text-[11px] leading-tight ${
                       c.id === activeConvId
                         ? 'bg-teal-50 text-teal-700 border-l-[3px] border-l-teal-500'
@@ -647,7 +687,7 @@ export default function ZundamonWidget() {
             </div>
 
             {/* ── 中央: 3D VRM (ずんだ × めたん) ───────────────────── */}
-            <div className="viewer-container flex-1 flex flex-col relative overflow-hidden border-r border-gray-200 viewer-bg">
+            <div className="viewer-container flex-1 flex flex-col relative overflow-hidden md:border-r border-gray-200 viewer-bg min-h-[38vh] md:min-h-0">
               <style>{buildViewerCSS(viewerEmotion)}</style>
 
               {/* 感情エフェクト背景層 */}
@@ -702,7 +742,7 @@ export default function ZundamonWidget() {
                 </div>
               )}
 
-              <div className="flex flex-1 min-h-0 relative z-10">
+              <div className="flex flex-1 min-h-0 relative z-10 scale-[0.82] md:scale-100 origin-center">
                 {/* ずんだもん */}
                 <div className="relative flex-1">
                   <VRMViewer
@@ -755,10 +795,38 @@ export default function ZundamonWidget() {
                   VOICEVOX未接続（音声なし）
                 </div>
               )}
+
+              {/* SP: チャット開閉フローティングボタン */}
+              <button
+                type="button"
+                onClick={() => setMobileChatOpen((v) => !v)}
+                className="md:hidden absolute bottom-3 right-3 z-20 w-12 h-12 rounded-full shadow-lg flex items-center justify-center text-white transition-transform active:scale-95"
+                style={{ backgroundColor: primaryColor }}
+                aria-label={mobileChatOpen ? 'チャットを閉じる' : 'チャットを開く'}
+              >
+                {mobileChatOpen ? (
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                ) : (
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </svg>
+                )}
+                {messages.length > 0 && !mobileChatOpen && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center px-1">
+                    {messages.length}
+                  </span>
+                )}
+              </button>
             </div>
 
-            {/* ── 右: チャット履歴 ───────────────────────────────── */}
-            <div className="w-[420px] shrink-0 flex flex-col bg-[#fafcff]">
+            {/* ── 右: チャット履歴 (SPでは下段、折りたたみ可能) ─── */}
+            <div className={cn(
+              'flex flex-col bg-[#fafcff] border-t md:border-t-0 border-gray-200',
+              'md:w-[420px] md:shrink-0 md:flex',
+              mobileChatOpen ? 'flex flex-1 min-h-[40vh]' : 'hidden md:flex',
+            )}>
               <div className="px-3 py-2 text-[11px] font-bold text-gray-400 border-b border-gray-200 bg-white flex items-center justify-between">
                 <span>💬 チャット</span>
                 {isLoading && <span className="text-teal-600">返答生成中...</span>}
@@ -768,7 +836,7 @@ export default function ZundamonWidget() {
                   <div className="flex flex-col items-center justify-center h-full text-center opacity-70 text-xs">
                     <div className="text-3xl mb-2">💬</div>
                     <p>何でも質問してほしいのだ！</p>
-                    <p className="mt-1 text-gray-400">二人で答えるのだ 🌿💜</p>
+                    <p className="mt-1 text-gray-400">二人で答えるのだ</p>
                   </div>
                 ) : (
                   messages.map((m) => {
@@ -794,11 +862,11 @@ export default function ZundamonWidget() {
                     return (
                       <div key={m.id} className="flex gap-1.5 items-start">
                         <div
-                          className={`w-7 h-7 rounded-full flex items-center justify-center text-sm flex-shrink-0 ${
-                            isZunda ? 'bg-teal-50' : 'bg-violet-50'
+                          className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${
+                            isZunda ? 'bg-teal-100 text-teal-700' : 'bg-violet-100 text-violet-700'
                           }`}
                         >
-                          {isZunda ? '🌿' : '💜'}
+                          {isZunda ? 'Z' : 'M'}
                         </div>
                         <div>
                           <div
@@ -835,8 +903,11 @@ export default function ZundamonWidget() {
           </div>
 
           {/* ── 下: チャット入力 (全カラム跨ぎ) ─────────────────────── */}
-          <div className="flex items-end gap-2 px-4 py-2 border-t-2 border-gray-200 bg-white flex-shrink-0">
-            <select className="px-2 py-1.5 rounded-md border border-gray-300 bg-cyan-700 text-white text-[11px] cursor-pointer flex-shrink-0">
+          <div
+            className="flex items-end gap-2 px-3 md:px-4 pt-3 pb-4 md:py-3 border-t border-gray-100 bg-white flex-shrink-0 rounded-b-[24px] md:rounded-b-[28px]"
+            style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+          >
+            <select className="hidden md:block px-2 py-1.5 rounded-md border border-gray-300 bg-cyan-700 text-white text-[11px] cursor-pointer flex-shrink-0">
               <option>DX ▼</option>
               <option>教務</option>
               <option>総務</option>
@@ -853,9 +924,9 @@ export default function ZundamonWidget() {
                   void runConversation(t);
                 }
               }}
-              placeholder="質問を入力（Enterで送信、Shift+Enterで改行）"
+              placeholder="質問を入力..."
               rows={1}
-              className="flex-1 min-h-[34px] max-h-[80px] rounded-md border border-gray-300 px-3 py-2 text-[12px] resize-none outline-none focus:border-teal-500 transition-colors"
+              className="flex-1 min-h-[40px] md:min-h-[34px] max-h-[80px] rounded-full md:rounded-md border border-gray-300 px-4 md:px-3 py-2 text-[14px] md:text-[12px] resize-none outline-none focus:border-teal-500 transition-colors"
             />
             <button
               type="button"
@@ -866,10 +937,21 @@ export default function ZundamonWidget() {
                 void runConversation(t);
               }}
               disabled={isLoading || !input.trim()}
-              className="px-4 py-2 rounded-md text-white text-xs font-bold flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-10 h-10 md:w-auto md:h-auto md:px-4 md:py-2 rounded-full md:rounded-md text-white text-xs font-bold flex items-center justify-center flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed active:scale-95 transition-transform shadow-md"
               style={{ backgroundColor: primaryColor }}
+              aria-label="送信"
             >
-              {isLoading ? '送信中' : '送信'}
+              {isLoading ? (
+                <svg className="animate-spin md:hidden" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" strokeOpacity="0.3"/>
+                  <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round"/>
+                </svg>
+              ) : (
+                <svg className="md:hidden" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M2 21l21-9L2 3v7l15 2-15 2z"/>
+                </svg>
+              )}
+              <span className="hidden md:inline">{isLoading ? '送信中' : '送信'}</span>
             </button>
           </div>
 

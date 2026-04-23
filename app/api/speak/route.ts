@@ -19,7 +19,9 @@ export async function POST(req: NextRequest) {
     }
 
     const emotionConfig = charConfig.emotions[emotion];
-    const spokenText = transformText(text, emotion, character);
+    // URLは読み上げに適さないので除去する
+    const cleanText = text.replace(/https?:\/\/\S+/g, '').trim();
+    const spokenText = transformText(cleanText || text, emotion, character);
 
     let voicevoxStyleId = emotionConfig.voicevoxStyleCandidates.length > 0 ? 3 : 2;
     try {

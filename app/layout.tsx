@@ -23,8 +23,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ja" className={`${notoSansJP.variable} ${geistMono.variable} h-full bg-background`}>
-      <body className="h-full overflow-hidden font-sans antialiased">{children}</body>
+    <html lang="ja" className={`${notoSansJP.variable} ${geistMono.variable} h-full bg-background`} suppressHydrationWarning>
+      <body className="h-full overflow-hidden font-sans antialiased" suppressHydrationWarning>{children}</body>
     </html>
   );
 }
