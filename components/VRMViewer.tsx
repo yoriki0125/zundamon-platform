@@ -440,15 +440,16 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
                   thinkActiveRef.current = false;
                 } else {
                   const s = Math.sin(thinkProgressRef.current * Math.PI);
-                  // 右腕を顎付近へ持ち上げる (z を正方向に動かすと腕が上がる)
-                  rArm?.rotation.set(s * 1.0, s * -0.3, -Math.PI * 0.42 + s * (Math.PI * 0.42 + 0.35));
-                  vrm.humanoid.getRawBoneNode('rightLowerArm')?.rotation.set(-s * 1.4, s * 0.5, 0);
-                  vrm.humanoid.getRawBoneNode('rightHand')?.rotation.set(0, 0, -s * 0.2);
-                  // 頭を右に傾けて少し前傾き
+                  // 上腕: y(負)で前方へ振り、z で少し持ち上げる
+                  rArm?.rotation.set(0, -s * 0.65, -Math.PI * 0.42 + s * 0.3);
+                  // 前腕: 肘を曲げ手を顎付近へ
+                  vrm.humanoid.getRawBoneNode('rightLowerArm')?.rotation.set(s * 1.5, 0, 0);
+                  vrm.humanoid.getRawBoneNode('rightHand')?.rotation.set(0, 0, -s * 0.15);
+                  // 頭を右に傾ける (右腕側へ)
                   if (head) {
                     head.rotation.x = s * 0.07;
                     head.rotation.y = Math.sin(elapsed * 0.4) * 0.04 + s * 0.05;
-                    head.rotation.z = -s * 0.13;
+                    head.rotation.z = s * 0.12;
                   }
                 }
               }
