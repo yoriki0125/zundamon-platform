@@ -204,6 +204,7 @@ export default function Home() {
             className="w-full h-full"
             modelPath={CHARACTER_CONFIG.zundamon.modelPath}
             initialRotationY={ZUNDAMON_ROT}
+            animationPreset="jump15"
           />
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
             <span className="px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm border bg-green-500/20 border-green-400/50 text-green-700 whitespace-nowrap">

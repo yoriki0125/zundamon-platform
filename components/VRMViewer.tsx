@@ -15,7 +15,7 @@ interface VRMViewerProps {
   className?: string;
   modelPath?: string;
   initialRotationY?: number;
-  animationPreset?: 'spin20';
+  animationPreset?: 'spin20' | 'jump15';
 }
 
 /* ── クロマキー合成用シェーダー ─────────────────────────────
@@ -85,10 +85,14 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
     // ドラッグと spin が共有する現在のY回転値
     const rotationYRef = useRef(initialRotationY);
     // spin 用
-    const spinTimerRef   = useRef(0);   // 次のスピンまでの経過秒
+    const spinTimerRef   = useRef(0);
     const spinActiveRef  = useRef(false);
-    const spinProgressRef = useRef(0);   // 0→1 でスピン進行
-    const spinStartRotRef = useRef(0);   // スピン開始時の rotation.y
+    const spinProgressRef = useRef(0);
+    const spinStartRotRef = useRef(0);
+    // jump15 用
+    const jumpTimerRef    = useRef(0);
+    const jumpActiveRef   = useRef(false);
+    const jumpProgressRef = useRef(0);
     // 口パク用の"生"モーフターゲット参照 (expression経由だと目にも干渉するため直接操作する)
     const mouthMorphsRef = useRef<Array<{ influences: number[]; index: number }>>([]);
     const mouthFallbackExprRef = useRef<string | null>(null);
@@ -321,6 +325,40 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
             vrm.humanoid.getRawBoneNode('rightLowerArm')?.rotation.set(0, 0, 0);
             vrm.humanoid.getRawBoneNode('leftHand')?.rotation.set(0, 0, 0.2);
             vrm.humanoid.getRawBoneNode('rightHand')?.rotation.set(0, 0, -0.2);
+
+            // ── jump15: 15秒周期で両手広げジャンプ ──────────────────────
+            if (animationPreset === 'jump15') {
+              const JUMP_DURATION = 1.0;
+              if (!jumpActiveRef.current) {
+                jumpTimerRef.current += delta;
+                if (jumpTimerRef.current >= 15) {
+                  jumpTimerRef.current = 0;
+                  jumpActiveRef.current = true;
+                  jumpProgressRef.current = 0;
+                }
+              }
+              if (jumpActiveRef.current) {
+                jumpProgressRef.current += delta / JUMP_DURATION;
+                if (jumpProgressRef.current >= 1) {
+                  jumpProgressRef.current = 1;
+                  jumpActiveRef.current = false;
+                  vrm.scene.position.y = 0;
+                } else {
+                  const t = jumpProgressRef.current;
+                  // ジャンプ軌跡: sin カーブで上昇→着地
+                  const jumpY = Math.sin(t * Math.PI) * 0.35;
+                  vrm.scene.position.y = jumpY;
+                  // 両腕を水平より少し上に広げる (通常 PI*0.42 → PI*0.58 付近)
+                  const spread = Math.sin(t * Math.PI);
+                  const armZ = Math.PI * 0.42 + spread * (Math.PI * 0.18);
+                  lArm?.rotation.set(0, 0,  armZ);
+                  rArm?.rotation.set(0, 0, -armZ);
+                  // 前腕も少し広げる
+                  vrm.humanoid.getRawBoneNode('leftLowerArm')?.rotation.set(0, 0,  spread * 0.15);
+                  vrm.humanoid.getRawBoneNode('rightLowerArm')?.rotation.set(0, 0, -spread * 0.15);
+                }
+              }
+            }
 
             for (const name of [
               'leftThumbMetacarpal', 'leftThumbProximal', 'leftThumbDistal',
