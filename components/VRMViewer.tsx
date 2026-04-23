@@ -270,8 +270,13 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
 
           if (vrm.humanoid) {
             const breathVal = Math.sin(elapsed * 1.5);
-            vrm.humanoid.getRawBoneNode('spine')?.rotation.set(breathVal * 0.015, 0, 0);
-            vrm.humanoid.getRawBoneNode('chest')?.rotation.set(breathVal * 0.01, 0, 0);
+            // 横揺れ (jump15 のみ・ジャンプ中は止める)
+            const swayVal = (animationPreset === 'jump15' && !jumpActiveRef.current)
+              ? Math.sin(elapsed * Math.PI * 2 * 1.3) * 0.055
+              : 0;
+            vrm.humanoid.getRawBoneNode('hips')?.rotation.set(0, 0, swayVal);
+            vrm.humanoid.getRawBoneNode('spine')?.rotation.set(breathVal * 0.015, 0, swayVal * 0.7);
+            vrm.humanoid.getRawBoneNode('chest')?.rotation.set(breathVal * 0.01,  0, swayVal * 0.5);
 
             const head = vrm.humanoid.getRawBoneNode('head');
             if (head) {
@@ -284,7 +289,8 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
               } else {
                 head.rotation.x = 0;
                 head.rotation.y = Math.sin(elapsed * 0.4) * 0.06;
-                head.rotation.z = Math.sin(elapsed * 0.6) * 0.02;
+                // 横揺れ時は頭が逆方向に少し傾く（慣性感）
+                head.rotation.z = Math.sin(elapsed * 0.6) * 0.02 - swayVal * 0.35;
               }
             }
 
