@@ -10,7 +10,8 @@ import {
 import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import type { Character, Emotion, SpeakResponse } from '@/lib/types';
-import { CHARACTER_CONFIG, EMOTION_LABELS } from '@/lib/emotion-map';
+import { CHARACTER_CONFIG, EMOTION_LABELS, EMOTION_EFFECTS } from '@/lib/emotion-map';
+import { cn } from '@/lib/utils';
 import { synthesize, checkVoicevox } from '@/lib/voicevox';
 import { useLipSyncVolume } from '@/lib/lipsync';
 import type { VRMViewerHandle } from '@/components/VRMViewer';
@@ -33,6 +34,21 @@ const ZUNDAMON_ROT = Math.PI + 0.32;
 const METAN_ROT = Math.PI - 0.32;
 
 type SpeakerLine = { speaker: Character; emotion: Emotion; text: string };
+
+/** 感情別のビューア背景/オーラ CSS 変数を生成 (メインページと同じロジック) */
+function buildViewerCSS(emotion: Emotion): string {
+  const fx = EMOTION_EFFECTS[emotion];
+  const rainCSS = emotion === 'sad'
+    ? Array.from({ length: 12 }, (_, i) => `.rain-streak:nth-child(${i + 1}){left:${8 + i * 7.5}%;height:${30 + (i % 3) * 15}%;animation-duration:${1.4 + (i % 4) * 0.3}s;animation-delay:${i * 0.18}s;}`).join('')
+    : '';
+  const sparkleCSS = emotion === 'happy'
+    ? Array.from({ length: 10 }, (_, i) => `.sparkle-dot:nth-child(${i + 1}){width:${4 + (i % 3) * 3}px;height:${4 + (i % 3) * 3}px;left:${10 + i * 8}%;animation-duration:${1.8 + (i % 4) * 0.4}s;animation-delay:${i * 0.22}s;}`).join('')
+    : '';
+  const burstCSS = emotion === 'surprised'
+    ? [0, 1, 2].map((i) => `.burst-ring:nth-child(${i + 1}){width:${180 + i * 80}px;height:${180 + i * 80}px;animation-delay:${i * 0.4}s;}`).join('')
+    : '';
+  return `.viewer-container{--fx-bg:${fx.bg};--fx-dot-color:${fx.dotColor};--fx-vignette:${fx.vignette};--fx-overlay-bg:${fx.overlayBg || 'none'};--fx-aura:${fx.aura};}${rainCSS}${sparkleCSS}${burstCSS}`;
+}
 
 /** テーマ分類（aiEndpoint 未設定時のフォールバック応答用） */
 const SAMPLE_RESPONSES: Record<string, SpeakerLine[]> = {
@@ -137,6 +153,7 @@ export default function ZundamonWidget() {
   const [panelOpen, setPanelOpen] = useState(true);
   const [showControlPanel, setShowControlPanel] = useState<boolean>(!!config.showDebugPanel);
   const [bubble, setBubble] = useState<{ speaker: Character; text: string } | null>(null);
+  const [viewerEmotion, setViewerEmotion] = useState<Emotion>('neutral');
   const [debugScript, setDebugScript] = useState<string>(
     'ずんだ: こんにちは、今日はずんだ日和なのだ！(2)\nめたん: あらあら、また張り切っているのね。(6)\nぼくは空を飛べるのだ！_z5\nそんなわけないでしょ_m3'
   );
@@ -154,18 +171,27 @@ export default function ZundamonWidget() {
     );
   }, []);
 
+  const lastHeightRef = useRef<number>(0);
+  const resizeRafRef = useRef<number>(0);
   const postResize = useCallback(() => {
     if (typeof document === 'undefined') return;
-    const doc = document.documentElement;
-    const body = document.body;
-    const height = Math.max(body.scrollHeight, body.offsetHeight, doc.clientHeight, doc.scrollHeight, doc.offsetHeight);
-    emit('zundamon:resize', { height });
+    // rAF でまとめ、高さが 4px 以上変わった時のみ親へ通知
+    if (resizeRafRef.current) return;
+    resizeRafRef.current = requestAnimationFrame(() => {
+      resizeRafRef.current = 0;
+      const doc = document.documentElement;
+      const body = document.body;
+      const height = Math.max(body.scrollHeight, body.offsetHeight, doc.clientHeight, doc.scrollHeight, doc.offsetHeight);
+      if (Math.abs(height - lastHeightRef.current) < 4) return;
+      lastHeightRef.current = height;
+      emit('zundamon:resize', { height });
+    });
   }, [emit]);
 
   // ── Effects ─────────────────────────────────────────────────────
   useEffect(() => { parentOriginRef.current = resolveParentOrigin(searchParams); }, [searchParams]);
   useEffect(() => { configRef.current = config; }, [config]);
-  useEffect(() => { messagesRef.current = messages; postResize(); }, [messages, postResize]);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
   useEffect(() => { contextRef.current = config.context ?? {}; }, [config.context]);
 
   useEffect(() => {
@@ -309,6 +335,111 @@ export default function ZundamonWidget() {
     setIsLoading(false);
   }, []);
 
+  /**
+   * 複数行を最速で連続再生する。
+   *   1. /api/speak と VOICEVOX synthesize を全行ぶん **並列プリフェッチ**
+   *   2. チャット履歴への追加は **1 回の setState にまとめる** (再レンダ/リサイズ観測の連鎖を排除)
+   *   3. 再生フェーズでは事前ロード済みの Blob を順番に鳴らすだけ
+   * これで 1 行あたりの直列ネットワーク待ちが消え、総所要時間 ≒ max(prefetch) + Σ(audio 長)
+   */
+  const playLinesBatch = useCallback(async (lines: SpeakerLine[]) => {
+    if (playingRef.current || lines.length === 0) return;
+    playingRef.current = true;
+    setIsLoading(true);
+    setError(null);
+
+    type Prepared = {
+      line: SpeakerLine;
+      blendShapes: Record<string, number> | null;
+      spokenText: string;
+      audioBlob: Blob | null;
+    };
+
+    // 1. 並列プリフェッチ
+    const prepared: Prepared[] = await Promise.all(
+      lines.map(async (line): Promise<Prepared> => {
+        try {
+          const res = await fetch('/api/speak', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: line.text, emotion: line.emotion, character: line.speaker }),
+          });
+          if (!res.ok) throw new Error('speak API error');
+          const payload: SpeakResponse = await res.json();
+          let audioBlob: Blob | null = null;
+          try {
+            const r = await synthesize(payload.spokenText, payload.voicevoxStyleId);
+            audioBlob = r.audioBlob;
+          } catch { /* VOICEVOX 未起動でも継続 */ }
+          return { line, blendShapes: payload.blendShapes, spokenText: payload.spokenText, audioBlob };
+        } catch (e) {
+          console.error('[widget] prefetch failed', e);
+          return { line, blendShapes: null, spokenText: line.text, audioBlob: null };
+        }
+      })
+    );
+
+    // 2. チャット履歴を 1 回のセットで全部追加 (N回の再レンダ→ResizeObserver連鎖 を避ける)
+    const baseTs = Date.now();
+    const msgs: WidgetMessage[] = prepared.map((p, i) => ({
+      id: `zw-${baseTs}-${i}-${Math.random().toString(36).slice(2, 6)}`,
+      role: 'assistant',
+      text: p.line.text,
+      emotion: p.line.emotion,
+      character: p.line.speaker,
+      spokenText: p.spokenText,
+      timestamp: new Date(baseTs + i).toISOString(),
+    }));
+    setConversations((prev) => prev.map((c) => {
+      if (c.id !== activeConvId) return c;
+      const firstText = msgs[0]?.text ?? '';
+      return {
+        ...c,
+        messages: [...c.messages, ...msgs],
+        updatedAt: msgs[msgs.length - 1].timestamp,
+        title: c.messages.length === 0 && firstText
+          ? firstText.slice(0, 14) + (firstText.length > 14 ? '…' : '')
+          : c.title,
+      };
+    }));
+    for (const m of msgs) emit('zundamon:answerShown', m);
+
+    // 3. 事前生成 URL を使って順次再生
+    const urls: string[] = [];
+    try {
+      for (const p of prepared) {
+        const speaker = p.line.speaker;
+        const other = speaker === 'zundamon' ? metanRef : zundaRef;
+        const ref = speaker === 'zundamon' ? zundaRef : metanRef;
+        other.current?.setListening(true);
+        speakingCharRef.current = speaker;
+        setViewerEmotion(p.line.emotion);
+        setBubble({ speaker, text: p.line.text });
+        if (p.blendShapes) ref.current?.setBlendShapes(p.blendShapes);
+        if (p.audioBlob) {
+          const url = URL.createObjectURL(p.audioBlob);
+          urls.push(url);
+          const audio = new Audio(url);
+          audio.preload = 'auto';
+          setAudioEl(audio);
+          await new Promise<void>((resolve) => {
+            audio.onended = () => resolve();
+            audio.onerror = () => resolve();
+            audio.play().catch(() => resolve());
+          });
+          setAudioEl(null);
+        }
+        ref.current?.setBlendShapes({ neutral: 1.0 });
+        other.current?.setListening(false);
+      }
+    } finally {
+      // URL は全部終わってから破棄 (再生中の revoke を回避)
+      for (const u of urls) URL.revokeObjectURL(u);
+      playingRef.current = false;
+      setIsLoading(false);
+    }
+  }, [activeConvId, emit]);
+
   // ── AI endpoint resolve (or fallback) ──────────────────────────
   const resolveReply = useCallback(async (prompt: string): Promise<SpeakerLine[]> => {
     const cfg = configRef.current;
@@ -376,15 +507,14 @@ export default function ZundamonWidget() {
 
     try {
       const lines = await resolveReply(text);
-      for (const line of lines) queueRef.current.push(() => playLine(line));
-      await runQueue();
+      await playLinesBatch(lines);
     } catch (e) {
       const msg = e instanceof Error ? e.message : '不明なエラー';
       setError(msg);
       emit('zundamon:error', { message: msg });
       setIsLoading(false);
     }
-  }, [appendMessageToActive, emit, isLoading, playLine, resolveReply, runQueue]);
+  }, [appendMessageToActive, emit, isLoading, playLinesBatch, resolveReply]);
 
   // ── postMessage 受信 ────────────────────────────────────────────
   useEffect(() => {
@@ -517,10 +647,39 @@ export default function ZundamonWidget() {
             </div>
 
             {/* ── 中央: 3D VRM (ずんだ × めたん) ───────────────────── */}
-            <div
-              className="flex-1 flex flex-col relative overflow-hidden border-r border-gray-200"
-              style={{ background: 'linear-gradient(180deg, #eef7f4, #f5fdfb)' }}
-            >
+            <div className="viewer-container flex-1 flex flex-col relative overflow-hidden border-r border-gray-200 viewer-bg">
+              <style>{buildViewerCSS(viewerEmotion)}</style>
+
+              {/* 感情エフェクト背景層 */}
+              <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                <div className="absolute inset-0 viewer-dot-grid" />
+                <div className="absolute inset-0 viewer-vignette" />
+                {EMOTION_EFFECTS[viewerEmotion].overlayBg && (
+                  <div className="absolute inset-0 viewer-overlay" />
+                )}
+                <div className={cn('viewer-ring-outer absolute rounded-full border transition-colors duration-700 animate-[spin_22s_linear_infinite]', EMOTION_EFFECTS[viewerEmotion].ring1)} />
+                <div className={cn('viewer-ring-inner absolute rounded-full border transition-colors duration-700 animate-[spin_15s_linear_infinite_reverse]', EMOTION_EFFECTS[viewerEmotion].ring2)} />
+                <div className="viewer-aura absolute rounded-full blur-3xl" />
+              </div>
+
+              {/* パーティクル層 */}
+              <div className="absolute inset-0 z-20 pointer-events-none overflow-hidden">
+                {viewerEmotion === 'sad' && Array.from({ length: 12 }, (_, i) => (
+                  <div key={i} className="rain-streak absolute top-0 w-px rounded-full opacity-40 bg-sky-300" />
+                ))}
+                {viewerEmotion === 'happy' && Array.from({ length: 10 }, (_, i) => (
+                  <div key={i} className="sparkle-dot absolute rounded-full bottom-[10%] bg-amber-300" />
+                ))}
+                {viewerEmotion === 'surprised' && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    {[0, 1, 2].map((i) => (
+                      <div key={i} className="burst-ring absolute rounded-full border border-violet-400/40" />
+                    ))}
+                  </div>
+                )}
+                {viewerEmotion === 'angry' && <div className="heat-flicker absolute inset-0" />}
+              </div>
+
               {/* 吹き出し */}
               {bubble && (
                 <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 max-w-[85%]">
@@ -543,7 +702,7 @@ export default function ZundamonWidget() {
                 </div>
               )}
 
-              <div className="flex flex-1 min-h-0">
+              <div className="flex flex-1 min-h-0 relative z-10">
                 {/* ずんだもん */}
                 <div className="relative flex-1">
                   <VRMViewer
@@ -744,11 +903,9 @@ export default function ZundamonWidget() {
                     key={emo}
                     type="button"
                     onClick={() => {
-                      // 強制的にずんだもんへ感情を乗せてお試し発話
-                      queueRef.current.push(() =>
-                        playLine({ speaker: 'zundamon', emotion: emo, text: `ぼくは今${EMOTION_LABELS[emo]}の気分なのだ！` })
-                      );
-                      void runQueue();
+                      void playLinesBatch([
+                        { speaker: 'zundamon', emotion: emo, text: `ぼくは今${EMOTION_LABELS[emo]}の気分なのだ！` },
+                      ]);
                     }}
                     className="py-2 rounded border border-violet-200 bg-white text-[10px] font-bold text-gray-700 hover:bg-violet-100 transition-colors"
                   >
@@ -819,13 +976,9 @@ export default function ZundamonWidget() {
                         type="button"
                         disabled={parsed.length === 0 || isLoading}
                         onClick={() => {
-                          setIsLoading(true);
-                          for (const p of parsed) {
-                            queueRef.current.push(() =>
-                              playLine({ speaker: p.character, emotion: p.emotion, text: p.text })
-                            );
-                          }
-                          void runQueue();
+                          void playLinesBatch(
+                            parsed.map((p) => ({ speaker: p.character, emotion: p.emotion, text: p.text }))
+                          );
                         }}
                         className="px-3 py-1.5 rounded-md bg-violet-600 text-white text-[11px] font-bold hover:bg-violet-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                       >
