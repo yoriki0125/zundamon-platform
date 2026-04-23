@@ -84,11 +84,14 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
     useEffect(() => { initialRotationYRef.current = initialRotationY; }, [initialRotationY]);
     // ドラッグと spin が共有する現在のY回転値
     const rotationYRef = useRef(initialRotationY);
-    // spin 用
-    const spinTimerRef   = useRef(0);
-    const spinActiveRef  = useRef(false);
+    // spin20 用
+    const spinTimerRef    = useRef(0);   // スピン/とんとん共有サイクルタイマー
+    const spinActiveRef   = useRef(false);
     const spinProgressRef = useRef(0);
     const spinStartRotRef = useRef(0);
+    const tapPhaseRef     = useRef(false); // false=次はスピン, true=次はとんとん
+    const tapActiveRef    = useRef(false);
+    const tapProgressRef  = useRef(0);
     // jump15 用
     const jumpTimerRef    = useRef(0);
     const jumpActiveRef   = useRef(false);
@@ -285,18 +288,32 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
               }
             }
 
-            // ── spin20: 20秒周期で片足一回転 ──────────────────────────
+            // ── spin20: スピン ↔ とんとん を20秒ごとに交互 ──────────────
             if (animationPreset === 'spin20') {
               const SPIN_DURATION = 1.8;
-              if (!spinActiveRef.current) {
+              const TAP_DURATION  = 4.0;
+
+              // どちらも非アクティブな間だけタイマーを進める
+              if (!spinActiveRef.current && !tapActiveRef.current) {
                 spinTimerRef.current += delta;
                 if (spinTimerRef.current >= 20) {
                   spinTimerRef.current = 0;
-                  spinActiveRef.current = true;
-                  spinProgressRef.current = 0;
-                  spinStartRotRef.current = vrm.scene.rotation.y;
+                  if (tapPhaseRef.current) {
+                    // とんとんフェーズ
+                    tapPhaseRef.current = false;
+                    tapActiveRef.current = true;
+                    tapProgressRef.current = 0;
+                  } else {
+                    // スピンフェーズ
+                    tapPhaseRef.current = true;
+                    spinActiveRef.current = true;
+                    spinProgressRef.current = 0;
+                    spinStartRotRef.current = vrm.scene.rotation.y;
+                  }
                 }
               }
+
+              // スピン実行
               if (spinActiveRef.current) {
                 spinProgressRef.current += delta / SPIN_DURATION;
                 if (spinProgressRef.current >= 1) {
@@ -309,21 +326,26 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
                   const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
                   vrm.scene.rotation.y = spinStartRotRef.current + ease * Math.PI * 2;
                   const legLift = Math.sin(t * Math.PI);
-                  vrm.humanoid?.getRawBoneNode('rightUpperLeg')
-                    ?.rotation.set(legLift * 0.9, 0, 0);
-                  vrm.humanoid?.getRawBoneNode('rightLowerLeg')
-                    ?.rotation.set(-legLift * 1.0, 0, 0);
-                  vrm.humanoid?.getRawBoneNode('rightFoot')
-                    ?.rotation.set(legLift * 0.3, 0, 0);
+                  vrm.humanoid?.getRawBoneNode('rightUpperLeg')?.rotation.set( legLift * 0.9, 0, 0);
+                  vrm.humanoid?.getRawBoneNode('rightLowerLeg')?.rotation.set(-legLift * 1.0, 0, 0);
+                  vrm.humanoid?.getRawBoneNode('rightFoot')?.rotation.set(legLift * 0.3, 0, 0);
                 }
               }
-              // ── つまさきとんとん (スピン中は停止) ──
-              if (!spinActiveRef.current) {
-                const tapFreq = elapsed * Math.PI * 3.0; // 約1.5Hz
-                const lTap = Math.max(0, Math.sin(tapFreq)) * 0.15;
-                const rTap = Math.max(0, Math.sin(tapFreq + Math.PI)) * 0.15;
-                vrm.humanoid.getRawBoneNode('leftFoot')?.rotation.set(-lTap, 0, 0);
-                vrm.humanoid.getRawBoneNode('rightFoot')?.rotation.set(-rTap, 0, 0);
+
+              // とんとん実行
+              if (tapActiveRef.current) {
+                tapProgressRef.current += delta / TAP_DURATION;
+                if (tapProgressRef.current >= 1) {
+                  tapActiveRef.current = false;
+                  vrm.humanoid.getRawBoneNode('leftFoot')?.rotation.set(0, 0, 0);
+                  vrm.humanoid.getRawBoneNode('rightFoot')?.rotation.set(0, 0, 0);
+                } else {
+                  const tapFreq = tapProgressRef.current * TAP_DURATION * Math.PI * 3.0;
+                  const lTap = Math.max(0, Math.sin(tapFreq)) * 0.15;
+                  const rTap = Math.max(0, Math.sin(tapFreq + Math.PI)) * 0.15;
+                  vrm.humanoid.getRawBoneNode('leftFoot')?.rotation.set(-lTap, 0, 0);
+                  vrm.humanoid.getRawBoneNode('rightFoot')?.rotation.set(-rTap, 0, 0);
+                }
               }
             }
 
@@ -418,10 +440,10 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
                   thinkActiveRef.current = false;
                 } else {
                   const s = Math.sin(thinkProgressRef.current * Math.PI);
-                  // 右腕を顎付近へ持ち上げる
-                  rArm?.rotation.set(s * 0.65, s * -0.25, -(Math.PI * 0.42 - s * 0.85));
-                  vrm.humanoid.getRawBoneNode('rightLowerArm')?.rotation.set(-s * 1.1, s * 0.5, 0);
-                  vrm.humanoid.getRawBoneNode('rightHand')?.rotation.set(0, 0, -s * 0.3);
+                  // 右腕を顎付近へ持ち上げる (z を正方向に動かすと腕が上がる)
+                  rArm?.rotation.set(s * 1.0, s * -0.3, -Math.PI * 0.42 + s * (Math.PI * 0.42 + 0.35));
+                  vrm.humanoid.getRawBoneNode('rightLowerArm')?.rotation.set(-s * 1.4, s * 0.5, 0);
+                  vrm.humanoid.getRawBoneNode('rightHand')?.rotation.set(0, 0, -s * 0.2);
                   // 頭を右に傾けて少し前傾き
                   if (head) {
                     head.rotation.x = s * 0.07;
