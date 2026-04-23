@@ -348,14 +348,14 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
                   // ジャンプ軌跡: sin カーブで上昇→着地
                   const jumpY = Math.sin(t * Math.PI) * 0.35;
                   vrm.scene.position.y = jumpY;
-                  // 両腕を水平より少し上に広げる (通常 PI*0.42 → PI*0.58 付近)
+                  // 両腕を外側に広げる (z を減らすと外に開く)
                   const spread = Math.sin(t * Math.PI);
-                  const armZ = Math.PI * 0.42 + spread * (Math.PI * 0.18);
+                  const armZ = Math.PI * 0.42 - spread * (Math.PI * 0.30);
                   lArm?.rotation.set(0, 0,  armZ);
                   rArm?.rotation.set(0, 0, -armZ);
-                  // 前腕も少し広げる
-                  vrm.humanoid.getRawBoneNode('leftLowerArm')?.rotation.set(0, 0,  spread * 0.15);
-                  vrm.humanoid.getRawBoneNode('rightLowerArm')?.rotation.set(0, 0, -spread * 0.15);
+                  // 前腕も外側へ
+                  vrm.humanoid.getRawBoneNode('leftLowerArm')?.rotation.set(0, 0, -spread * 0.15);
+                  vrm.humanoid.getRawBoneNode('rightLowerArm')?.rotation.set(0, 0,  spread * 0.15);
                 }
               }
             }
