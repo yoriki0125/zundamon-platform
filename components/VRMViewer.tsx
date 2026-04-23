@@ -326,9 +326,11 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
             vrm.humanoid.getRawBoneNode('leftHand')?.rotation.set(0, 0, 0.2);
             vrm.humanoid.getRawBoneNode('rightHand')?.rotation.set(0, 0, -0.2);
 
-            // ── jump15: 15秒周期で両手広げジャンプ ──────────────────────
+            // ── jump15: 15秒周期で屈伸→両手広げジャンプ ────────────────
             if (animationPreset === 'jump15') {
-              const JUMP_DURATION = 1.0;
+              const JUMP_DURATION = 1.3;
+              const SQUAT_END  = 0.18; // 0→SQUAT_END: 屈伸
+              const LAND_START = 0.82; // LAND_START→1: 着地吸収
               if (!jumpActiveRef.current) {
                 jumpTimerRef.current += delta;
                 if (jumpTimerRef.current >= 15) {
@@ -343,19 +345,48 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
                   jumpProgressRef.current = 1;
                   jumpActiveRef.current = false;
                   vrm.scene.position.y = 0;
+                  for (const side of ['left', 'right'] as const) {
+                    vrm.humanoid.getRawBoneNode(`${side}UpperLeg`)?.rotation.set(0, 0, 0);
+                    vrm.humanoid.getRawBoneNode(`${side}LowerLeg`)?.rotation.set(0, 0, 0);
+                  }
                 } else {
                   const t = jumpProgressRef.current;
-                  // ジャンプ軌跡: sin カーブで上昇→着地
-                  const jumpY = Math.sin(t * Math.PI) * 0.35;
-                  vrm.scene.position.y = jumpY;
-                  // 両腕を外側に広げる (z を減らすと外に開く)
-                  const spread = Math.sin(t * Math.PI);
-                  const armZ = Math.PI * 0.42 - spread * (Math.PI * 0.30);
-                  lArm?.rotation.set(0, 0,  armZ);
-                  rArm?.rotation.set(0, 0, -armZ);
-                  // 前腕も外側へ
-                  vrm.humanoid.getRawBoneNode('leftLowerArm')?.rotation.set(0, 0, -spread * 0.15);
-                  vrm.humanoid.getRawBoneNode('rightLowerArm')?.rotation.set(0, 0,  spread * 0.15);
+
+                  if (t < SQUAT_END) {
+                    // 屈伸: 少し沈んで膝を曲げる
+                    const st = t / SQUAT_END;
+                    const dip = Math.sin(st * Math.PI) * 0.05;
+                    vrm.scene.position.y = -dip;
+                    const bend = Math.sin(st * Math.PI) * 0.38;
+                    for (const side of ['left', 'right'] as const) {
+                      vrm.humanoid.getRawBoneNode(`${side}UpperLeg`)?.rotation.set( bend * 0.4, 0, 0);
+                      vrm.humanoid.getRawBoneNode(`${side}LowerLeg`)?.rotation.set(-bend,       0, 0);
+                    }
+                  } else if (t < LAND_START) {
+                    // 空中: 小さめジャンプ + 両腕を外に広げる
+                    const jt = (t - SQUAT_END) / (LAND_START - SQUAT_END);
+                    vrm.scene.position.y = Math.sin(jt * Math.PI) * 0.18;
+                    for (const side of ['left', 'right'] as const) {
+                      vrm.humanoid.getRawBoneNode(`${side}UpperLeg`)?.rotation.set(0, 0, 0);
+                      vrm.humanoid.getRawBoneNode(`${side}LowerLeg`)?.rotation.set(0, 0, 0);
+                    }
+                    const spread = Math.sin(jt * Math.PI);
+                    const armZ = Math.PI * 0.42 - spread * (Math.PI * 0.30);
+                    lArm?.rotation.set(0, 0,  armZ);
+                    rArm?.rotation.set(0, 0, -armZ);
+                    vrm.humanoid.getRawBoneNode('leftLowerArm')?.rotation.set(0, 0, -spread * 0.15);
+                    vrm.humanoid.getRawBoneNode('rightLowerArm')?.rotation.set(0, 0,  spread * 0.15);
+                  } else {
+                    // 着地吸収: 少し沈んで戻る
+                    const lt = (t - LAND_START) / (1 - LAND_START);
+                    const absorb = Math.sin(lt * Math.PI) * 0.04;
+                    vrm.scene.position.y = -absorb;
+                    const bend = Math.sin(lt * Math.PI) * 0.28;
+                    for (const side of ['left', 'right'] as const) {
+                      vrm.humanoid.getRawBoneNode(`${side}UpperLeg`)?.rotation.set( bend * 0.4, 0, 0);
+                      vrm.humanoid.getRawBoneNode(`${side}LowerLeg`)?.rotation.set(-bend,       0, 0);
+                    }
+                  }
                 }
               }
             }
