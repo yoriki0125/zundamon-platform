@@ -68,7 +68,7 @@ export const EMOTION_ICON_SYMBOL: Record<Emotion, string> = {
   angry:     '×',
   sad:       '…',
   surprised: '!?',
-  shy:       'ヒソ',
+  shy:       '〇',
 };
 
 export const EMOTION_GLOW: Record<Emotion, string> = {
