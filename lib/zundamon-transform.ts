@@ -1,46 +1,52 @@
-import { Emotion } from './types';
+import { Character, Emotion } from './types';
 
-// ずんだもん口調への簡易変換 (Claude API不要)
-export function transformToZundamon(text: string, emotion: Emotion): string {
-  let result = text.trim();
+const ZUNDAMON_SUFFIXES: Record<Emotion, string[]> = {
+  neutral:   ['なのだ', 'のだ', 'なのだ'],
+  happy:     ['なのだ〜', 'のだ！', 'なのだよ〜'],
+  angry:     ['なのだ！', 'のだ！！', 'なのだぞ！'],
+  sad:       ['なのだ…', 'のだ…', 'なのだよ…'],
+  surprised: ['なのだ！？', 'のだ！？', 'なのだ！'],
+  shy:       ['なのだ…', 'のだ…', 'なのだよ…'],
+};
 
-  // 文末の句読点を除去して後で付け直す
-  const punct = result.match(/[。！？!?]+$/)?.[0] ?? '';
-  result = result.replace(/[。！？!?]+$/, '');
+const METAN_SUFFIXES: Record<Emotion, string[]> = {
+  neutral:   ['ですわ', 'わね', 'かしら'],
+  happy:     ['ですわ〜！', 'うれしいですわ！', 'わよ！'],
+  angry:     ['いやですわ！', 'もうっ！', 'ですわ！！'],
+  sad:       ['ですわ…', 'かしら…', 'わね…'],
+  surprised: ['まあ！', 'うそ！？', 'ですわ！？'],
+  shy:       ['ですわ…', 'かしら…', 'はずかしいですわ…'],
+};
 
-  // 感情別の語尾
-  const suffixes: Record<Emotion, string[]> = {
-    neutral:   ['なのだ', 'のだ', 'なのだ'],
-    happy:     ['なのだ〜', 'のだ！', 'なのだよ〜'],
-    angry:     ['なのだ！', 'のだ！！', 'なのだぞ！'],
-    sad:       ['なのだ…', 'のだ…', 'なのだよ…'],
-    surprised: ['なのだ！？', 'のだ！？', 'なのだ！'],
-    shy:       ['なのだ…', 'のだ…', 'なのだよ…'],
-  };
+function stripSuffix(text: string): [string, string] {
+  const punct = text.match(/[。！？!?]+$/)?.[0] ?? '';
+  return [text.replace(/[。！？!?]+$/, ''), punct];
+}
 
+function removePoliteSuffix(text: string): string {
+  return text
+    .replace(/です$/, '').replace(/ます$/, '')
+    .replace(/でした$/, '').replace(/ました$/, '')
+    .replace(/だよ$/, '').replace(/だね$/, '')
+    .replace(/だよね$/, '').replace(/だ$/, '');
+}
+
+export function transformText(text: string, emotion: Emotion, character: Character): string {
+  const suffixes = character === 'zundamon' ? ZUNDAMON_SUFFIXES : METAN_SUFFIXES;
+  const alreadyDone = character === 'zundamon'
+    ? /[のな]だ[〜！？…!?]*$/.test(text.trim())
+    : /ですわ|かしら|ですの|ですわよ/.test(text.trim());
+
+  let [result, punct] = stripSuffix(text.trim());
+  if (alreadyDone) return result + punct;
+
+  result = removePoliteSuffix(result);
   const options = suffixes[emotion];
   const suffix = options[Math.floor(Math.random() * options.length)];
-
-  // 既に「のだ」系で終わっていれば変換しない
-  if (/[のな]だ[〜！？…!?]*$/.test(result)) {
-    return result + punct;
-  }
-
-  // 「です」「ます」系を置換
-  result = result
-    .replace(/です$/, '')
-    .replace(/ます$/, '')
-    .replace(/でした$/, '')
-    .replace(/ました$/, '')
-    .replace(/ください$/, 'してほしいのだ')
-    .replace(/してください$/, 'してほしいのだ');
-
-  // 「だ」「だよ」「だね」等を置換
-  result = result
-    .replace(/だよ$/, '')
-    .replace(/だね$/, '')
-    .replace(/だよね$/, '')
-    .replace(/だ$/, '');
-
   return result + suffix + (punct === '。' ? '' : punct);
+}
+
+// 後方互換
+export function transformToZundamon(text: string, emotion: Emotion): string {
+  return transformText(text, emotion, 'zundamon');
 }

@@ -7,6 +7,7 @@ import {
   EMOTION_ICON_SYMBOL,
   EMOTION_TEXT,
   EMOTION_BORDER,
+  CHARACTER_CONFIG,
 } from '@/lib/emotion-map';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -67,6 +68,16 @@ export default function HistoryList({ items, onReplay, isLoading }: HistoryListP
 
               {/* ヘッダー行 */}
               <div className="flex items-center gap-2 mb-1.5 pl-2">
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border',
+                    item.character === 'zundamon'
+                      ? 'bg-green-100 border-green-300 text-green-700'
+                      : 'bg-purple-100 border-purple-300 text-purple-700'
+                  )}
+                >
+                  {CHARACTER_CONFIG[item.character].label}
+                </span>
                 <span
                   className={cn(
                     'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-white border',

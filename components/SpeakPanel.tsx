@@ -101,7 +101,7 @@ export default function SpeakPanel({ onSpeak, isLoading, error }: SpeakPanelProp
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="ずんだもんに喋らせるテキストを入力..."
+          placeholder="キャラクターに喋らせるテキストを入力..."
           rows={3}
           className={cn(
             'w-full rounded-xl p-3 resize-none text-sm leading-relaxed',

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ずんだもん × 四国めたん ウィジェット デモ</title>
+    <style>
+      body { font-family: 'Hiragino Sans', 'Yu Gothic', system-ui, sans-serif; margin: 0; padding: 32px; background: #f4fbf7; color: #10231d; }
+      .card { max-width: 1200px; margin: 0 auto; background: #fff; border-radius: 24px; padding: 24px; box-shadow: 0 20px 60px rgba(16,35,29,.08); }
+      h1 { font-size: 20px; margin: 0 0 8px; }
+      p.lead { color: #555; margin: 0 0 16px; font-size: 13px; }
+      .tip { background: #fffbe6; border: 1px solid #ffe58f; color: #7a5a00; padding: 10px 14px; border-radius: 12px; font-size: 12px; margin-bottom: 16px; }
+      #ai-concierge-root { margin-top: 16px; border: 1px solid #e0e0e0; border-radius: 16px; overflow: hidden; }
+      .meta { display: flex; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
+      .btn { padding: 6px 12px; border-radius: 8px; border: 1px solid #00c9a7; background: #fff; color: #00a98a; font-size: 12px; cursor: pointer; font-weight: bold; }
+      .btn:hover { background: #00c9a7; color: #fff; }
+      code { background: #f4f4f4; padding: 2px 6px; border-radius: 4px; font-size: 11px; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>🌿💜 AIコンシェルジュ ウィジェット 埋め込みデモ</h1>
+      <p class="lead">ホストページに <code>&lt;script&gt;</code> 1 本を貼るだけで、ずんだもん×四国めたん の AI コンシェルジュを iframe 化して組み込めます。</p>
+      <div class="tip">
+        💡 <b>隠しコマンド</b>: ウィジェット上で <code>Ctrl + Shift + D</code> を押すとデバッグ/コントロールパネル（感情お試しボタン等）が開きます。
+      </div>
+
+      <div id="ai-concierge-root"></div>
+
+      <div class="meta">
+        <button class="btn" onclick="demoWidget.sendMessage('有給休暇の確認方法は？')">API: 「有給休暇の確認方法は？」を送信</button>
+        <button class="btn" onclick="demoWidget.sendMessage('受講生がログインできない')">API: 「ログインできない」を送信</button>
+        <button class="btn" onclick="demoWidget.setContext({ page: 'dashboard', role: 'ssc' })">API: setContext() でコンテキスト更新</button>
+      </div>
+    </div>
+
+    <script src="/widget/zundamon-widget-sdk.js"></script>
+    <script>
+      const widget = window.ZundamonWidget.init({
+        container: '#ai-concierge-root',
+        baseUrl: window.location.origin,
+        mode: 'embedded',
+        minHeight: 680,
+        maxHeight: 900,
+        title: 'AIコンシェルジュ',
+        subtitle: 'ずんだもん × 四国めたん',
+        characterName: 'ずんだもん',
+        tenantId: 'demo-tenant',
+        userId: 'demo-user',
+        token: 'signed-short-lived-token',
+        // aiEndpoint を指定しない場合はサンプルの掛け合い応答にフォールバック
+        // aiEndpoint: '/api/your-ai-endpoint',
+        suggestedPrompts: [
+          '受講生がログインできない場合',
+          '有給休暇の確認方法は？',
+          '今日の未対応タスクをまとめて',
+        ],
+        theme: {
+          primaryColor: '#14b8a6',
+          accentColor: '#8b5cf6'
+        },
+        onReady(payload)       { console.log('[widget] ready', payload); },
+        onAnswerShown(payload) { console.log('[widget] answerShown', payload); },
+        onMessageSent(payload) { console.log('[widget] messageSent', payload); },
+        onError(payload)       { console.error('[widget] error', payload); }
+      });
+
+      window.demoWidget = widget;
+    </script>
+  </body>
+</html>

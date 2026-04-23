@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>AIコンシェルジュ × ずんだもん モックアップ</title>
+  <title>AIコンシェルジュ × ずんだもん＆四国めたん モックアップ</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0;}
     body{font-family:'Hiragino Sans','Yu Gothic',sans-serif;background:#f5f6f8;height:100vh;overflow:hidden;}
     .layout{display:flex;height:100vh;overflow:hidden;}
 
-    /* ===== 左サイドバー（オリジナル） ===== */
+    /* ===== 左サイドバー ===== */
     .sidebar{width:210px;background:white;border-right:1px solid #e0e0e0;display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;height:100vh;overflow-y:auto;}
     .sb-profile{background:linear-gradient(135deg,#00c9a7,#0097a7);padding:20px 16px;text-align:center;color:white;position:relative;}
     .sb-close{position:absolute;top:8px;left:8px;background:rgba(255,255,255,0.3);border:none;color:white;width:22px;height:22px;border-radius:50%;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
@@ -26,7 +26,7 @@
     /* ===== メイン ===== */
     .main{flex:1;display:flex;flex-direction:column;min-width:0;height:100vh;overflow-y:auto;}
 
-    /* ===== トップナビ（オリジナル） ===== */
+    /* ===== トップナビ ===== */
     .topnav{background:white;border-bottom:1px solid #e0e0e0;padding:0 24px;height:54px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
     .tn-logo{font-size:22px;font-weight:bold;color:#00c9a7;display:flex;align-items:center;gap:6px;}
     .tn-tabs{display:flex;gap:28px;}
@@ -37,10 +37,8 @@
     .tn-switch{padding:6px 14px;border-radius:20px;border:1px solid #ccc;background:white;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:5px;}
     .tn-profile{font-size:13px;color:#555;cursor:pointer;}
 
-    /* ===== AIコンシェルジュ ページ最上部ベタづけ ===== */
+    /* ===== AIコンシェルジュ ===== */
     .concierge-wrap{background:white;border-bottom:2px solid #e0e0e0;box-shadow:0 2px 12px rgba(0,0,0,0.07);}
-
-    /* 上部バー */
     .c-bar{display:flex;align-items:center;justify-content:space-between;padding:9px 18px;cursor:pointer;user-select:none;}
     .c-bar-left{display:flex;align-items:center;gap:10px;}
     .c-bar-icon{font-size:20px;}
@@ -49,25 +47,11 @@
     .toggle-btn{width:30px;height:30px;border-radius:50%;background:#00c9a7;color:white;border:none;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform 0.3s;}
     .toggle-btn.open{transform:rotate(180deg);}
 
-    /* AIからのアラートバナー */
-    .ai-alert{display:none;align-items:center;gap:8px;padding:6px 16px;background:linear-gradient(90deg,#fff8e1,#fff3cd);border-bottom:1px solid #ffd54f;font-size:12px;color:#795548;}
-    .ai-alert.show{display:flex;}
-    .ai-alert-dot{width:8px;height:8px;border-radius:50%;background:#ff6b35;flex-shrink:0;animation:pulse 1.2s ease-in-out infinite;}
-    @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(1.3)}}
-    .ai-alert-text{font-weight:bold;color:#e65100;}
-    .ai-alert-sub{color:#888;font-size:11px;}
-
-    /* パターンタブ（バーの右側・チャット欄と分離） */
-    .pattern-tabs{display:flex;gap:6px;}
-    .ptab{padding:5px 12px;border-radius:14px;border:1px solid #ddd;background:white;font-size:11px;cursor:pointer;color:#888;transition:all 0.15s;}
-    .ptab.on{background:#00c9a7;color:white;border-color:#00c9a7;}
-
     /* 本体（開閉） */
     .c-body{display:flex;flex-direction:column;overflow:hidden;height:calc((100vh - 100px) * 0.8);transition:height 0.45s ease,opacity 0.3s ease;opacity:1;}
     .c-body.closed{height:0;opacity:0;}
-    /* 3カラム行 */
     .c-cols{display:flex;flex:1;overflow:hidden;min-height:0;}
-    .col-hist,.col-zunda,.col-chat{min-height:0;}
+    .col-hist,.col-duo,.col-chat{min-height:0;}
 
     /* 左：会話履歴 */
     .col-hist{width:152px;border-right:1px solid #eee;display:flex;flex-direction:column;flex-shrink:0;background:#fafafa;}
@@ -79,66 +63,105 @@
     .h-item.on{background:#e5f7f3;color:#00a98a;border-left:3px solid #00c9a7;}
     .h-date{font-size:10px;color:#bbb;display:block;margin-top:1px;}
 
-    /* 中央：ずんだもん */
-    .col-zunda{flex:1;display:flex;flex-direction:column;background:linear-gradient(180deg,#e4f7f1,#f5fdfb);border-right:1px solid #eee;position:relative;overflow:hidden;min-width:160px;}
+    /* 中央：キャラクター二人 */
+    .col-duo{flex:1;display:flex;flex-direction:column;background:linear-gradient(180deg,#eef7f4,#f5fdfb);border-right:1px solid #eee;position:relative;overflow:hidden;min-width:200px;}
     .bg-rings{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;}
-    .ring{position:absolute;border-radius:50%;border:1px solid rgba(0,180,140,0.1);}
+    .ring{position:absolute;border-radius:50%;border:1px solid rgba(0,180,140,0.08);}
     .r1{width:120px;height:120px;animation:sp 22s linear infinite;}
-    .r2{width:190px;height:190px;animation:sp 16s linear infinite reverse;}
-    .r3{width:260px;height:260px;animation:sp 30s linear infinite;}
+    .r2{width:210px;height:210px;animation:sp 16s linear infinite reverse;}
+    .r3{width:300px;height:300px;animation:sp 30s linear infinite;}
     @keyframes sp{from{transform:rotate(0)}to{transform:rotate(360deg)}}
-    .aura{position:absolute;bottom:60px;left:50%;transform:translateX(-50%);width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,rgba(0,200,160,0.12),transparent 70%);pointer-events:none;}
-    /* 感情ボタン：右端に縦並び */
-    .emo-bar{position:absolute;right:8px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:6px;z-index:2;}
-    .emo-btn{width:28px;height:28px;border-radius:50%;border:2px solid white;background:white;box-shadow:0 2px 6px rgba(0,0,0,0.1);font-size:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform 0.15s;}
-    .emo-btn:hover,.emo-btn.on{transform:scale(1.2);box-shadow:0 0 0 2px #00c9a7;}
-    /* 吹き出し（上部・矢印は下向き） */
-    .bubble-wrap{padding:10px 14px 14px;flex-shrink:0;position:relative;z-index:1;}
-    .bubble{background:white;border-radius:13px;padding:8px 12px;box-shadow:0 2px 10px rgba(0,0,0,0.09);border:1px solid #c8ede4;position:relative;animation:fu 0.4s ease-out;}
-    @keyframes fu{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
-    .bubble::before{content:'';position:absolute;bottom:-9px;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#c8ede4;}
-    .bubble::after{content:'';position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);border:4px solid transparent;border-top-color:white;}
-    .b-name{font-size:10px;color:#00a98a;font-weight:bold;margin-bottom:2px;}
-    .b-text{font-size:12px;color:#333;line-height:1.5;}
-    .zunda-stage{flex:1;display:flex;align-items:center;justify-content:center;position:relative;z-index:1;}
-    .zunda-fig{display:flex;flex-direction:column;align-items:center;gap:6px;}
-    .zunda-3d{width:100px;height:150px;border-radius:14px;border:1px dashed rgba(0,160,120,0.2);background:rgba(255,255,255,0.08);display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;}
-    .ph-label{position:absolute;top:6px;left:0;right:0;text-align:center;font-size:9px;color:rgba(0,130,100,0.35);font-style:italic;}
-    .zunda-emoji{font-size:52px;line-height:1;animation:fl 3s ease-in-out infinite;filter:drop-shadow(0 4px 8px rgba(0,140,90,0.2));}
-    @keyframes fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
-    .zunda-tag{font-size:11px;font-weight:bold;color:#00a98a;background:white;padding:2px 12px;border-radius:16px;box-shadow:0 2px 6px rgba(0,0,0,0.07);}
+
+    /* 吹き出し（上部） */
+    .bubble-area{padding:10px 12px 6px;flex-shrink:0;position:relative;z-index:1;}
+    .bubble{border-radius:13px;padding:8px 12px;box-shadow:0 2px 10px rgba(0,0,0,0.09);position:relative;animation:fu 0.35s ease-out;}
+    @keyframes fu{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+    .bubble.zunda{background:white;border:1.5px solid #c8ede4;}
+    .bubble.metan{background:white;border:1.5px solid #d4c0f0;}
+    .bubble.zunda::before{content:'';position:absolute;bottom:-9px;left:30%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#c8ede4;}
+    .bubble.zunda::after{content:'';position:absolute;bottom:-7px;left:30%;transform:translateX(-50%);border:4px solid transparent;border-top-color:white;}
+    .bubble.metan::before{content:'';position:absolute;bottom:-9px;left:70%;transform:translateX(-50%);border:5px solid transparent;border-top-color:#d4c0f0;}
+    .bubble.metan::after{content:'';position:absolute;bottom:-7px;left:70%;transform:translateX(-50%);border:4px solid transparent;border-top-color:white;}
+    .b-name{font-size:10px;font-weight:bold;margin-bottom:2px;}
+    .b-name.zunda{color:#00a98a;}
+    .b-name.metan{color:#7c4dcc;}
+    .b-text{font-size:11px;color:#333;line-height:1.55;}
+
+    /* キャラ二人並び */
+    .duo-stage{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:0;position:relative;z-index:1;padding-bottom:8px;}
+    .char-fig{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;}
+    .char-3d{width:90px;height:130px;border-radius:12px;border:1px dashed rgba(0,160,120,0.15);background:rgba(255,255,255,0.1);display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;}
+    .char-3d.metan-box{border-color:rgba(120,80,200,0.15);}
+    .ph-label{position:absolute;top:5px;left:0;right:0;text-align:center;font-size:8px;color:rgba(0,100,80,0.3);font-style:italic;}
+    .ph-label.metan{color:rgba(100,60,180,0.3);}
+    .char-emoji{font-size:48px;line-height:1;animation:fl 3s ease-in-out infinite;filter:drop-shadow(0 4px 8px rgba(0,140,90,0.2));}
+    .char-emoji.metan-em{animation:fl 3.5s ease-in-out infinite 0.8s;filter:drop-shadow(0 4px 8px rgba(100,60,200,0.2));}
+    @keyframes fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+    .char-tag{font-size:10px;font-weight:bold;padding:2px 10px;border-radius:14px;box-shadow:0 1px 5px rgba(0,0,0,0.07);}
+    .char-tag.zunda{color:#00a98a;background:white;}
+    .char-tag.metan{color:#7c4dcc;background:white;}
+    .duo-divider{width:1px;background:rgba(0,0,0,0.06);align-self:stretch;margin-bottom:12px;}
+
+    /* クイック質問 */
     .quick-wrap{padding:0 10px 8px;display:flex;gap:5px;flex-wrap:wrap;justify-content:center;position:relative;z-index:1;}
     .q-btn{padding:4px 9px;border-radius:14px;border:1px solid #00c9a7;background:white;color:#00a98a;font-size:10px;cursor:pointer;transition:all 0.15s;}
     .q-btn:hover{background:#00c9a7;color:white;}
 
-    /* 右：チャット履歴 */
-    .col-chat{width:590px;display:flex;flex-direction:column;flex-shrink:0;background:#fafcff;}
+    /* 右：チャット */
+    .col-chat{width:600px;display:flex;flex-direction:column;flex-shrink:0;background:#fafcff;}
     .chat-msgs{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px;}
+
+    /* メッセージ */
     .msg{display:flex;gap:6px;align-items:flex-start;}
     .msg.u{flex-direction:row-reverse;}
     .m-av{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;}
-    .m-av.ai{background:#e3f7f3;} .m-av.u{background:#e3eeff;}
-    .m-bub{max-width:72%;padding:9px 13px;border-radius:12px;font-size:12px;line-height:1.65;}
-    .msg.ai .m-bub{background:#f0f0f0;color:#333;border-radius:3px 14px 14px 14px;}
-    .msg.u .m-bub{background:#00c9a7;color:white;border-radius:14px 3px 14px 14px;}
-    .m-time{font-size:10px;color:#bbb;margin-top:3px;align-self:flex-end;}
-    .ai-first-badge{text-align:center;margin:4px 0;font-size:10px;background:#ff6b35;color:white;padding:2px 8px;border-radius:10px;font-weight:bold;display:inline-block;}
+    .m-av.zunda{background:#e3f7f3;}
+    .m-av.metan{background:#ede3f7;}
+    .m-av.u{background:#e3eeff;}
+    .m-meta{display:flex;flex-direction:column;gap:1px;}
+    .m-speaker{font-size:10px;font-weight:bold;color:#888;margin-bottom:2px;}
+    .m-speaker.zunda{color:#00a98a;}
+    .m-speaker.metan{color:#7c4dcc;}
+    .m-bub{max-width:75%;padding:9px 13px;border-radius:12px;font-size:12px;line-height:1.65;}
+    .msg.zunda .m-bub{background:#f0f9f5;border:1px solid #d4f0e5;color:#222;border-radius:3px 14px 14px 14px;}
+    .msg.metan  .m-bub{background:#f9f0ff;border:1px solid #e8d5f5;color:#222;border-radius:3px 14px 14px 14px;}
+    .msg.u      .m-bub{background:#00c9a7;color:white;border-radius:14px 3px 14px 14px;}
+    .m-time{font-size:10px;color:#bbb;margin-top:3px;}
+
+    /* タイピング */
     .typing{display:flex;gap:3px;align-items:center;padding:7px 11px;background:#f4f4f4;border-radius:3px 12px 12px 12px;width:fit-content;}
     .dot{width:6px;height:6px;border-radius:50%;background:#bbb;animation:bo 1.2s infinite;}
     .dot:nth-child(2){animation-delay:0.2s;} .dot:nth-child(3){animation-delay:0.4s;}
     @keyframes bo{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-5px)}}
 
-    /* 下部：チャット入力（全カラム跨ぎ） */
+    /* 入力バー */
     .c-chat-bar{border-top:2px solid #e8e8e8;padding:8px 16px;display:flex;gap:8px;align-items:flex-end;background:white;flex-shrink:0;}
     .dept-sel{padding:6px 7px;border-radius:6px;border:1px solid #ccc;background:#0097a7;color:white;font-size:11px;cursor:pointer;flex-shrink:0;}
     .in-field{flex:1;border:1px solid #e0e0e0;border-radius:6px;padding:7px 10px;font-size:11px;resize:none;font-family:inherit;outline:none;min-height:34px;}
     .in-field:focus{border-color:#00c9a7;}
     .send-btn{padding:7px 14px;background:#00c9a7;color:white;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-weight:bold;flex-shrink:0;}
+    .send-btn:disabled{background:#ccc;cursor:not-allowed;}
 
-    /* ===== ページ本体（オリジナル） ===== */
+    /* ===== ページ本体 ===== */
     .page-body{flex:1;padding:20px 24px;overflow-y:auto;}
+    .msg-block{background:white;border-radius:10px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 1px 6px rgba(0,0,0,0.06);margin-bottom:14px;}
+    .msg-block-left{display:flex;align-items:center;gap:10px;}
+    .msg-dot{width:10px;height:10px;border-radius:50%;background:#e74c3c;flex-shrink:0;}
+    .msg-block-text{font-size:13px;color:#444;}
+    .msg-block-right{display:flex;align-items:center;gap:20px;}
+    .msg-count-label{font-size:12px;color:#888;}
+    .msg-count-val{font-size:14px;font-weight:bold;color:#e74c3c;}
+    .msg-count-sub{font-size:11px;color:#aaa;}
+    .dash-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+    .dash-card{background:white;border-radius:10px;padding:16px;box-shadow:0 1px 6px rgba(0,0,0,0.06);}
+    .dash-card-title{font-size:13px;font-weight:bold;color:#333;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+    .dash-card-body{font-size:12px;color:#888;line-height:1.8;}
+    .dash-empty{color:#bbb;font-size:12px;padding:10px 0;}
+    .dash-tag{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:bold;margin-right:4px;}
+    .tag-new-g{background:#e3f7f3;color:#00a98a;}
+    .tag-wait{background:#fff3e0;color:#e67e22;}
 
-    /* ===== AI記事セクション ===== */
+    /* AI記事セクション */
     .ai-articles{margin-top:20px;}
     .sec-header{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
     .sec-title{font-size:15px;font-weight:bold;color:#222;}
@@ -148,11 +171,7 @@
     .ctab{padding:4px 12px;border-radius:14px;border:1px solid #ddd;background:white;font-size:11px;color:#888;cursor:pointer;transition:all 0.15s;}
     .ctab.on{background:#00c9a7;color:white;border-color:#00c9a7;font-weight:bold;}
     .ctab:hover:not(.on){background:#f5fdfb;border-color:#00c9a7;color:#00a98a;}
-
-    /* フィーチャー＋ランキング行 */
     .art-top-row{display:flex;gap:14px;margin-bottom:14px;}
-
-    /* フィーチャー記事 */
     .art-feature{flex:1;background:white;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.08);overflow:hidden;cursor:pointer;transition:box-shadow 0.2s;display:flex;flex-direction:column;}
     .art-feature:hover{box-shadow:0 6px 20px rgba(0,180,140,0.15);}
     .art-feat-img{height:130px;background:linear-gradient(135deg,#00c9a7 0%,#0097a7 60%,#005f6b 100%);position:relative;display:flex;align-items:center;justify-content:center;font-size:54px;flex-shrink:0;}
@@ -165,15 +184,13 @@
     .art-cat-gray{display:inline-block;border:1px solid #ddd;border-radius:4px;font-size:10px;color:#999;padding:1px 7px;}
     .art-feat-title{font-size:14px;font-weight:bold;color:#1a1a1a;line-height:1.6;}
     .art-feat-desc{font-size:11px;color:#666;line-height:1.75;flex:1;}
-    .zunda-comment{display:flex;align-items:flex-start;gap:6px;background:#e8fdf7;border-radius:8px;padding:7px 10px;margin-top:2px;}
-    .zc-icon{font-size:16px;flex-shrink:0;}
-    .zc-text{font-size:10px;color:#008a6e;line-height:1.5;}
+    .duo-comment{display:flex;align-items:flex-start;gap:6px;background:#eef8f5;border-radius:8px;padding:7px 10px;margin-top:2px;}
+    .dc-icons{font-size:14px;flex-shrink:0;}
+    .dc-text{font-size:10px;color:#007a60;line-height:1.5;}
     .art-feat-foot{display:flex;align-items:center;justify-content:space-between;margin-top:6px;}
     .art-read-time{font-size:10px;color:#bbb;}
     .art-cta{display:inline-block;padding:5px 14px;border-radius:16px;background:#00c9a7;color:white;font-size:11px;font-weight:bold;transition:background 0.15s;}
     .art-feature:hover .art-cta{background:#00a98a;}
-
-    /* ランキングサイドバー */
     .art-ranking{width:240px;flex-shrink:0;background:white;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,0.08);padding:14px 16px;display:flex;flex-direction:column;gap:0;}
     .rank-header{font-size:12px;font-weight:bold;color:#333;margin-bottom:10px;display:flex;align-items:center;gap:5px;}
     .rank-item{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid #f0f0f0;cursor:pointer;}
@@ -184,8 +201,6 @@
     .rank-body{flex:1;}
     .rank-title{font-size:11px;color:#333;line-height:1.5;font-weight:bold;}
     .rank-meta{font-size:10px;color:#bbb;margin-top:2px;}
-
-    /* グリッド記事 */
     .art-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
     .art-card{background:white;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.07);overflow:hidden;cursor:pointer;transition:all 0.2s;display:flex;flex-direction:column;}
     .art-card:hover{box-shadow:0 6px 18px rgba(0,180,140,0.15);transform:translateY(-2px);}
@@ -200,32 +215,12 @@
     .art-card-foot{display:flex;align-items:center;justify-content:space-between;margin-top:4px;}
     .art-card-time{font-size:10px;color:#bbb;}
     .art-arrow{font-size:11px;color:#00c9a7;font-weight:bold;}
-
-    /* メッセージブロック */
-    .msg-block{background:white;border-radius:10px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 1px 6px rgba(0,0,0,0.06);margin-bottom:14px;}
-    .msg-block-left{display:flex;align-items:center;gap:10px;}
-    .msg-dot{width:10px;height:10px;border-radius:50%;background:#e74c3c;flex-shrink:0;}
-    .msg-block-text{font-size:13px;color:#444;}
-    .msg-block-right{display:flex;align-items:center;gap:20px;}
-    .msg-count-label{font-size:12px;color:#888;}
-    .msg-count-val{font-size:14px;font-weight:bold;color:#e74c3c;}
-    .msg-count-sub{font-size:11px;color:#aaa;}
-
-    /* 下部ダッシュボード */
-    .dash-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
-    .dash-card{background:white;border-radius:10px;padding:16px;box-shadow:0 1px 6px rgba(0,0,0,0.06);}
-    .dash-card-title{font-size:13px;font-weight:bold;color:#333;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
-    .dash-card-body{font-size:12px;color:#888;line-height:1.8;}
-    .dash-empty{color:#bbb;font-size:12px;padding:10px 0;}
-    .dash-tag{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:bold;margin-right:4px;}
-    .tag-new{background:#e3f7f3;color:#00a98a;}
-    .tag-wait{background:#fff3e0;color:#e67e22;}
   </style>
 </head>
 <body>
 <div class="layout">
 
-  <!-- 左サイドバー（オリジナル） -->
+  <!-- 左サイドバー -->
   <div class="sidebar">
     <div class="sb-profile">
       <button class="sb-close">＜</button>
@@ -234,7 +229,6 @@
       <div class="sb-id">ID：162267</div>
       <button class="sb-btn">プロフィール</button>
     </div>
-
     <div class="sb-section">スクール全般 <span>▲</span></div>
     <div class="sb-divider"></div>
     <div class="sb-item">受講生一覧</div>
@@ -252,38 +246,24 @@
   <!-- メイン -->
   <div class="main">
 
-    <!-- ★ AIコンシェルジュ（最上部ベタづけ・開閉可） ★ -->
+    <!-- ★ AIコンシェルジュ ★ -->
     <div class="concierge-wrap">
 
-      <!-- バー：タイトル＋パターンタブ＋開閉ボタン -->
+      <!-- バー -->
       <div class="c-bar">
         <div class="c-bar-left" onclick="toggleConcierge()">
-          <span class="c-bar-icon">🌿</span>
-          <span class="c-bar-title">AIコンシェルジュ（ずんだもん）</span>
+          <span class="c-bar-icon">🌿💜</span>
+          <span class="c-bar-title">AIコンシェルジュ（ずんだもん × 四国めたん）</span>
           <span class="c-bar-badge">β版</span>
           <span style="font-size:11px;color:#bbb;margin-left:8px;">今後、DXの威信をかけて会社の全てを記録させていきます。</span>
         </div>
         <div style="display:flex;align-items:center;gap:12px;">
-          <!-- パターンタブをここに配置（チャット欄と分離） -->
-          <div class="pattern-tabs">
-            <button class="ptab on" onclick="setPattern(1,this)">① ユーザーから話しかける</button>
-            <button class="ptab" onclick="setPattern(2,this)">② AIから話しかける</button>
-          </div>
           <button class="toggle-btn open" id="toggle-btn" onclick="toggleConcierge()">▲</button>
         </div>
       </div>
 
-      <!-- AIからのアラートバナー -->
-      <div class="ai-alert" id="ai-alert">
-        <div class="ai-alert-dot"></div>
-        <span class="ai-alert-text">🌿 ずんだもんからお話しかけしています</span>
-        <span class="ai-alert-sub">— チャット欄をご確認ください</span>
-      </div>
-
-      <!-- 本体（3カラム ＋ 下部入力バー） -->
+      <!-- 本体 -->
       <div class="c-body" id="c-body">
-
-        <!-- 3カラム行 -->
         <div class="c-cols">
 
           <!-- 左：会話履歴 -->
@@ -302,72 +282,65 @@
             </div>
           </div>
 
-          <!-- 中央：ずんだもん -->
-          <div class="col-zunda">
+          <!-- 中央：キャラクター二人 -->
+          <div class="col-duo">
             <div class="bg-rings"><div class="ring r3"></div><div class="ring r2"></div><div class="ring r1"></div></div>
-            <div class="aura"></div>
-            <!-- 吹き出し：上部に配置、矢印は下向き -->
-            <div class="bubble-wrap">
-              <div class="bubble">
-                <div class="b-name">ずんだもん</div>
+
+            <!-- 吹き出し -->
+            <div class="bubble-area">
+              <div class="bubble zunda" id="bubble-box">
+                <div class="b-name zunda" id="bubble-name">ずんだもん</div>
                 <div class="b-text" id="bubble-text">ご質問はなんのだ？<br>なんでも聞いてほしいのだ！🌿</div>
               </div>
             </div>
-            <div class="emo-bar">
-              <div class="emo-btn on">😊</div>
-              <div class="emo-btn">😄</div>
-              <div class="emo-btn">😢</div>
-              <div class="emo-btn">😠</div>
-              <div class="emo-btn">😲</div>
-            </div>
-            <div class="zunda-stage">
-              <div class="zunda-fig">
-                <div class="zunda-3d">
-                  <div class="ph-label">← 3Dモデルが入る →</div>
-                  <div class="zunda-emoji" id="zunda-face">🌿</div>
+
+            <!-- キャラ並び -->
+            <div class="duo-stage">
+              <div class="char-fig">
+                <div class="char-3d">
+                  <div class="ph-label">← 3Dモデル →</div>
+                  <div class="char-emoji">🌿</div>
                 </div>
-                <div class="zunda-tag">ずんだもん</div>
+                <div class="char-tag zunda">ずんだもん</div>
+              </div>
+              <div class="duo-divider"></div>
+              <div class="char-fig">
+                <div class="char-3d metan-box">
+                  <div class="ph-label metan">← 3Dモデル →</div>
+                  <div class="char-emoji metan-em">💜</div>
+                </div>
+                <div class="char-tag metan">四国めたん</div>
               </div>
             </div>
+
             <div class="quick-wrap" id="quick-area">
-              <button class="q-btn">受講生がログインできない場合</button>
-              <button class="q-btn">有給休暇の確認方法は？</button>
+              <button class="q-btn" onclick="sendMessage('受講生がログインできない場合の対応を教えてください')">受講生がログインできない場合</button>
+              <button class="q-btn" onclick="sendMessage('有給休暇の確認方法は？')">有給休暇の確認方法は？</button>
             </div>
           </div>
 
-          <!-- 右：チャット履歴 -->
+          <!-- 右：チャット -->
           <div class="col-chat">
-            <div class="col-hdr">💬 チャット履歴</div>
+            <div class="col-hdr">💬 チャット</div>
             <div class="chat-msgs" id="chat-msgs">
-              <div id="pat1-msgs">
-                <div class="msg ai"><div class="m-av ai">🌿</div><div><div class="m-bub">ご質問はなんのだ？なんでも聞いてほしいのだ！</div><div class="m-time">16:18</div></div></div>
-                <div class="msg u"><div class="m-av u">👤</div><div><div class="m-bub">受講生がアシストにログインできない場合の対応を教えてください</div><div class="m-time">16:18</div></div></div>
-                <div class="msg ai"><div class="m-av ai">🌿</div><div><div class="m-bub">まずパスワードリセットをお試しくださいなのだ！<br>①管理画面で受講生を検索<br>②「パスワード変更」をクリック<br>③仮パスワードを通知するのだ！</div><div class="m-time">16:18</div></div></div>
-              </div>
-              <div id="pat2-msgs" style="display:none;">
-                <div style="text-align:center;"><span class="ai-first-badge">🌿 ずんだもんから話しかけました</span></div>
-                <div class="msg ai"><div class="m-av ai">🌿</div><div><div class="m-bub">横尾さん、お疲れ様なのだ！🌿<br>今日も何かお手伝いできることはあるのだ？</div><div class="m-time">09:01</div></div></div>
-                <div class="msg ai"><div class="m-av ai">🌿</div><div><div class="typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div><div class="m-time" style="font-size:9px;color:#bbb;margin-top:2px;">入力中…</div></div></div>
-              </div>
+              <!-- 初期メッセージはJS挿入 -->
             </div>
           </div>
 
         </div><!-- /c-cols -->
 
-        <!-- 下部：チャット入力（全カラム跨ぎ） -->
+        <!-- 入力バー -->
         <div class="c-chat-bar">
           <select class="dept-sel"><option>DX ▼</option></select>
-          <textarea class="in-field" rows="1" placeholder="質問を入力（Ctrl+Enterで送信）"></textarea>
-          <button class="send-btn">送信</button>
+          <textarea class="in-field" id="chat-input" rows="1" placeholder="質問を入力（Enterで送信）" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"></textarea>
+          <button class="send-btn" id="send-btn" onclick="sendMessage()">送信</button>
         </div>
-
       </div>
     </div>
     <!-- /コンシェルジュ -->
 
-    <!-- ページ本体（オリジナル） -->
+    <!-- ページ本体 -->
     <div class="page-body">
-      <!-- メッセージブロック -->
       <div class="msg-block">
         <div class="msg-block-left">
           <div class="msg-dot"></div>
@@ -386,7 +359,6 @@
         </div>
       </div>
 
-      <!-- ダッシュボードカード -->
       <div class="dash-grid">
         <div class="dash-card">
           <div class="dash-card-title">📋 未対応タスク</div>
@@ -396,7 +368,7 @@
           <div class="dash-card-title">📩 最近の質問</div>
           <div class="dash-card-body">
             <div style="padding:6px 0;border-bottom:1px solid #f0f0f0;">
-              <span class="dash-tag tag-new">NEW</span>ログインできない受講生の対応方法
+              <span class="dash-tag tag-new-g">NEW</span>ログインできない受講生の対応方法
               <div style="font-size:10px;color:#aaa;margin-top:2px;">04/21 16:18</div>
             </div>
             <div style="padding:6px 0;">
@@ -411,13 +383,12 @@
         </div>
       </div>
 
-      <!-- AI記事セクション -->
       <div class="ai-articles">
         <div class="sec-header">
           <span class="sec-title">🌿 今週のAI×教育トレンド</span>
           <span class="sec-badge">AIピックアップ</span>
         </div>
-        <div class="sec-desc">横尾さんの業務・担当分野をもとに、ずんだもんが厳選した記事です</div>
+        <div class="sec-desc">横尾さんの業務・担当分野をもとに、ずんだもん＆めたんが厳選した記事です</div>
         <div class="cat-tabs">
           <button class="ctab on">すべて</button>
           <button class="ctab">AI活用</button>
@@ -425,28 +396,16 @@
           <button class="ctab">DX実践</button>
           <button class="ctab">キャリア</button>
         </div>
-
-        <!-- フィーチャー＋ランキング行 -->
         <div class="art-top-row">
-
-          <!-- フィーチャー記事 -->
           <div class="art-feature">
-            <div class="art-feat-img">
-              🤖
-              <div class="art-feat-meta">
-                <span class="tag-hot">HOT</span>
-                <span class="tag-ai">AI活用</span>
-              </div>
-            </div>
+            <div class="art-feat-img">🤖<div class="art-feat-meta"><span class="tag-hot">HOT</span><span class="tag-ai">AI活用</span></div></div>
             <div class="art-feat-body">
-              <div>
-                <span class="art-cat">教育DX</span>
-              </div>
+              <div><span class="art-cat">教育DX</span></div>
               <div class="art-feat-title">ChatGPTを授業に導入したら、受講生の理解度テストが1.8倍に。現場スタッフが語るAI活用の本音と実践ノウハウ</div>
               <div class="art-feat-desc">「最初は不安だった」と話す現場スタッフ。しかし導入3ヶ月で受講生の満足度・理解度ともに劇的改善。具体的な使い方から失敗談まで、リアルな声をお届けします。</div>
-              <div class="zunda-comment">
-                <span class="zc-icon">🌿</span>
-                <span class="zc-text">横尾さんの担当受講生数から判断して、今すぐ使えるヒントが多いのだ！特に「フィードバック自動化」の部分は必見なのだ。</span>
+              <div class="duo-comment">
+                <span class="dc-icons">🌿💜</span>
+                <span class="dc-text">ずんだ：横尾さんの担当受講生数から判断して、今すぐ使えるヒントが多いのだ！<br>めたん：特に「フィードバック自動化」の部分は読む価値あるわよ。</span>
               </div>
               <div class="art-feat-foot">
                 <span class="art-read-time">📖 約5分で読めます</span>
@@ -454,151 +413,253 @@
               </div>
             </div>
           </div>
-
-          <!-- ランキング -->
           <div class="art-ranking">
             <div class="rank-header">🔥 今週の注目記事</div>
-            <div class="rank-item">
-              <div class="rank-num top">1</div>
-              <div class="rank-body">
-                <div class="rank-title">2025年、教育機関のAI導入率が急増中。知らないと乗り遅れるトレンド5選</div>
-                <div class="rank-meta">EdTech · 約3分</div>
-              </div>
-            </div>
-            <div class="rank-item">
-              <div class="rank-num top">2</div>
-              <div class="rank-body">
-                <div class="rank-title">AIが採点・フィードバックを自動化！教師の業務が週10時間削減された実例</div>
-                <div class="rank-meta">DX実践 · 約4分</div>
-              </div>
-            </div>
-            <div class="rank-item">
-              <div class="rank-num">3</div>
-              <div class="rank-body">
-                <div class="rank-title">ChatGPT・Gemini・Claude、教育現場に使うならどれ？2025年版徹底比較</div>
-                <div class="rank-meta">AI活用 · 約6分</div>
-              </div>
-            </div>
-            <div class="rank-item">
-              <div class="rank-num">4</div>
-              <div class="rank-body">
-                <div class="rank-title">「AIに仕事を奪われる？」教育者が知っておきたいAI時代のキャリア論</div>
-                <div class="rank-meta">キャリア · 約4分</div>
-              </div>
-            </div>
-          </div>
-
-        </div><!-- /art-top-row -->
-
-        <!-- グリッド記事 -->
-        <div class="art-grid">
-          <div class="art-card">
-            <div class="art-thumb c1">
-              🎯
-              <span class="art-thumb-badge tag-new">NEW</span>
-            </div>
-            <div class="art-card-body">
-              <span class="art-cat">AI活用</span>
-              <div class="art-card-title">生成AIで学習プランを個別最適化。受講生の継続率が3割上がった具体的な手順とは</div>
-              <div class="art-card-foot">
-                <span class="art-card-time">約4分</span>
-                <span class="art-arrow">→</span>
-              </div>
-            </div>
-          </div>
-          <div class="art-card">
-            <div class="art-thumb c2">
-              📊
-              <span class="art-thumb-badge tag-hot">HOT</span>
-            </div>
-            <div class="art-card-body">
-              <span class="art-cat">DX実践</span>
-              <div class="art-card-title">スタッフの「なんとなく勘」をデータに変える。教育現場でのAI記録・分析活用入門</div>
-              <div class="art-card-foot">
-                <span class="art-card-time">約5分</span>
-                <span class="art-arrow">→</span>
-              </div>
-            </div>
-          </div>
-          <div class="art-card">
-            <div class="art-thumb c3">
-              💬
-            </div>
-            <div class="art-card-body">
-              <span class="art-cat">EdTech</span>
-              <div class="art-card-title">AIチャットボットが受講生の「夜中の不安」に答える時代。導入校の事例と落とし穴</div>
-              <div class="art-card-foot">
-                <span class="art-card-time">約3分</span>
-                <span class="art-arrow">→</span>
-              </div>
-            </div>
-          </div>
-          <div class="art-card">
-            <div class="art-thumb c4">
-              🚀
-            </div>
-            <div class="art-card-body">
-              <span class="art-cat-gray">キャリア</span>
-              <div class="art-card-title">AI時代に「教える力」はどう変わるか。10年後も活躍できる教育スタッフの条件</div>
-              <div class="art-card-foot">
-                <span class="art-card-time">約5分</span>
-                <span class="art-arrow">→</span>
-              </div>
-            </div>
+            <div class="rank-item"><div class="rank-num top">1</div><div class="rank-body"><div class="rank-title">2025年、教育機関のAI導入率が急増中。知らないと乗り遅れるトレンド5選</div><div class="rank-meta">EdTech · 約3分</div></div></div>
+            <div class="rank-item"><div class="rank-num top">2</div><div class="rank-body"><div class="rank-title">AIが採点・フィードバックを自動化！教師の業務が週10時間削減された実例</div><div class="rank-meta">DX実践 · 約4分</div></div></div>
+            <div class="rank-item"><div class="rank-num">3</div><div class="rank-body"><div class="rank-title">ChatGPT・Gemini・Claude、教育現場に使うならどれ？2025年版徹底比較</div><div class="rank-meta">AI活用 · 約6分</div></div></div>
+            <div class="rank-item"><div class="rank-num">4</div><div class="rank-body"><div class="rank-title">「AIに仕事を奪われる？」教育者が知っておきたいAI時代のキャリア論</div><div class="rank-meta">キャリア · 約4分</div></div></div>
           </div>
         </div>
+        <div class="art-grid">
+          <div class="art-card"><div class="art-thumb c1">🎯<span class="art-thumb-badge tag-new">NEW</span></div><div class="art-card-body"><span class="art-cat">AI活用</span><div class="art-card-title">生成AIで学習プランを個別最適化。受講生の継続率が3割上がった具体的な手順とは</div><div class="art-card-foot"><span class="art-card-time">約4分</span><span class="art-arrow">→</span></div></div></div>
+          <div class="art-card"><div class="art-thumb c2">📊<span class="art-thumb-badge tag-hot">HOT</span></div><div class="art-card-body"><span class="art-cat">DX実践</span><div class="art-card-title">スタッフの「なんとなく勘」をデータに変える。教育現場でのAI記録・分析活用入門</div><div class="art-card-foot"><span class="art-card-time">約5分</span><span class="art-arrow">→</span></div></div></div>
+          <div class="art-card"><div class="art-thumb c3">💬</div><div class="art-card-body"><span class="art-cat">EdTech</span><div class="art-card-title">AIチャットボットが受講生の「夜中の不安」に答える時代。導入校の事例と落とし穴</div><div class="art-card-foot"><span class="art-card-time">約3分</span><span class="art-arrow">→</span></div></div></div>
+          <div class="art-card"><div class="art-thumb c4">🚀</div><div class="art-card-body"><span class="art-cat-gray">キャリア</span><div class="art-card-title">AI時代に「教える力」はどう変わるか。10年後も活躍できる教育スタッフの条件</div><div class="art-card-foot"><span class="art-card-time">約5分</span><span class="art-arrow">→</span></div></div></div>
+        </div>
       </div>
-      <!-- /AI記事セクション -->
-
     </div>
 
   </div><!-- /main -->
 </div><!-- /layout -->
 
 <script>
+/* ============================
+   キャラクター設定・サンプル応答
+   ============================ */
+const CHARS = {
+  zundamon: { cls: 'zunda', av: '🌿', label: 'ずんだもん' },
+  metan:    { cls: 'metan', av: '💜', label: '四国めたん' }
+};
+
+// テーマ別のサンプル応答（speaker/emotion/text）
+const SAMPLE_RESPONSES = {
+  login: [
+    { speaker: 'zundamon', emotion: 'happy',    text: 'ログインできないのだ！？それは大変なのだ！まずパスワードリセットを試してほしいのだ！' },
+    { speaker: 'metan',    emotion: 'neutral',  text: '落ち着きなさいよ。手順を整理するわね。まず管理画面で受講生を検索して、「パスワード変更」をクリックするの。' },
+    { speaker: 'zundamon', emotion: 'surprised',text: 'そんなに手順があるのだ！？ぼく頑張って覚えるのだ！' },
+    { speaker: 'metan',    emotion: 'shy',      text: '……まあ、その意気込みは悪くないけどね。仮パスワードを受講生に通知して完了よ。何かあればまた聞いてね。' }
+  ],
+  kyuuka: [
+    { speaker: 'metan',    emotion: 'neutral',  text: '有給休暇の確認ね。まずkintoneのワークフローを開くわ。' },
+    { speaker: 'zundamon', emotion: 'happy',    text: 'ぼくも有給いっぱい欲しいのだ！ずんだ餅食べる時間が必要なのだ！' },
+    { speaker: 'metan',    emotion: 'angry',    text: 'アンタは関係ないでしょ。——横尾さん、「休暇申請」メニューから残日数が確認できるわよ。申請もそこから出来るの。' },
+    { speaker: 'zundamon', emotion: 'surprised',text: 'めたんに怒られてしまったのだ……で、承認は上長にいくのだ？' },
+    { speaker: 'metan',    emotion: 'neutral',  text: 'そうよ。直属の上長に通知が届いて、承認されれば完了。シンプルでしょ。' }
+  ],
+  default: [
+    { speaker: 'zundamon', emotion: 'happy',    text: 'なんのだ！？気になることがあれば遠慮なく聞いてほしいのだ！ぼくたちに任せるのだ！' },
+    { speaker: 'metan',    emotion: 'neutral',  text: 'もう少し具体的に教えてもらえると、もっと的確に答えられるわ。どんなことで困っているの？' },
+    { speaker: 'zundamon', emotion: 'happy',    text: 'そうなのだ！なんでも聞くのだ！ずんだもんは全力でサポートするのだ！' },
+    { speaker: 'metan',    emotion: 'shy',      text: '……まあ、頼りにしてくれていいわよ。二人でちゃんと答えるから。' }
+  ]
+};
+
+/* ============================
+   状態
+   ============================ */
 let isOpen = true;
 let chatCount = 2452;
+let isBusy = false;
+let bubbleTimer = null;
+
+/* ============================
+   時刻ヘルパー
+   ============================ */
+function nowTime() {
+  const d = new Date();
+  return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+}
+
+/* ============================
+   吹き出し更新
+   ============================ */
+function setBubble(speaker, text) {
+  const box  = document.getElementById('bubble-box');
+  const name = document.getElementById('bubble-name');
+  const txt  = document.getElementById('bubble-text');
+  const ch   = CHARS[speaker];
+  box.className  = 'bubble ' + ch.cls;
+  name.className = 'b-name ' + ch.cls;
+  name.textContent = ch.label;
+  txt.innerHTML  = text;
+}
+
+/* ============================
+   チャットへメッセージ追加
+   ============================ */
+function appendMsg(speaker, text, time) {
+  const ch   = CHARS[speaker];
+  const msgs = document.getElementById('chat-msgs');
+  const div  = document.createElement('div');
+  div.className = 'msg ' + ch.cls;
+  div.innerHTML = `
+    <div class="m-av ${ch.cls}">${ch.av}</div>
+    <div class="m-meta">
+      <div class="m-speaker ${ch.cls}">${ch.label}</div>
+      <div class="m-bub">${text}</div>
+      <div class="m-time">${time || nowTime()}</div>
+    </div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+function appendUserMsg(text) {
+  const msgs = document.getElementById('chat-msgs');
+  const div  = document.createElement('div');
+  div.className = 'msg u';
+  div.innerHTML = `
+    <div class="m-av u">👤</div>
+    <div>
+      <div class="m-bub">${text}</div>
+      <div class="m-time">${nowTime()}</div>
+    </div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function appendTyping(speaker) {
+  const ch   = CHARS[speaker];
+  const msgs = document.getElementById('chat-msgs');
+  const div  = document.createElement('div');
+  div.className = 'msg ' + ch.cls;
+  div.id = 'typing-indicator';
+  div.innerHTML = `
+    <div class="m-av ${ch.cls}">${ch.av}</div>
+    <div>
+      <div class="typing"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+    </div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+function removeTyping() {
+  const t = document.getElementById('typing-indicator');
+  if (t) t.remove();
+}
+
+/* ============================
+   応答シーケンス再生
+   ============================ */
+async function playResponses(lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const typingEl = appendTyping(line.speaker);
+    await sleep(800 + Math.random() * 400);
+    removeTyping();
+    appendMsg(line.speaker, line.text);
+    setBubble(line.speaker, line.text);
+    if (i < lines.length - 1) await sleep(600);
+  }
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+/* ============================
+   テーマ分類
+   ============================ */
+function classify(text) {
+  const t = text.toLowerCase();
+  if (t.includes('ログイン') || t.includes('パスワード') || t.includes('assist')) return 'login';
+  if (t.includes('有給') || t.includes('休暇') || t.includes('休み')) return 'kyuuka';
+  return 'default';
+}
+
+/* ============================
+   送信
+   ============================ */
+async function sendMessage(preset) {
+  if (isBusy) return;
+  const input = document.getElementById('chat-input');
+  const text  = preset || input.value.trim();
+  if (!text) return;
+  isBusy = true;
+  document.getElementById('send-btn').disabled = true;
+  if (!preset) input.value = '';
+
+  appendUserMsg(text);
+
+  const theme = classify(text);
+  const lines = SAMPLE_RESPONSES[theme];
+
+  await sleep(300);
+  await playResponses(lines);
+
+  isBusy = false;
+  document.getElementById('send-btn').disabled = false;
+}
+
+/* ============================
+   新しい会話
+   ============================ */
 function newChat() {
   const list = document.querySelector('.h-list');
   document.querySelectorAll('.h-item').forEach(i => i.classList.remove('on'));
   const item = document.createElement('div');
   item.className = 'h-item on';
   const now = new Date();
-  const mm = String(now.getMonth()+1).padStart(2,'0');
-  const dd = String(now.getDate()).padStart(2,'0');
-  const hh = String(now.getHours()).padStart(2,'0');
-  const mi = String(now.getMinutes()).padStart(2,'0');
+  const mm  = String(now.getMonth()+1).padStart(2,'0');
+  const dd  = String(now.getDate()).padStart(2,'0');
+  const hh  = String(now.getHours()).padStart(2,'0');
+  const mi  = String(now.getMinutes()).padStart(2,'0');
   item.innerHTML = '新しい会話<span class="h-date">'+mm+'/'+dd+' '+hh+':'+mi+'</span>';
   list.insertBefore(item, list.firstChild);
   document.querySelector('.hist-id').textContent = '会話ID：#'+chatCount++;
-  document.getElementById('pat1-msgs').innerHTML = '<div class="msg ai"><div class="m-av ai">🌿</div><div><div class="m-bub">ご質問はなんのだ？なんでも聞いてほしいのだ！</div><div class="m-time">'+hh+':'+mi+'</div></div></div>';
-  document.getElementById('pat2-msgs').innerHTML = '';
+
+  // チャットリセット
+  const msgs = document.getElementById('chat-msgs');
+  msgs.innerHTML = '';
+  appendMsg('zundamon', 'ご質問はなんのだ？なんでも聞いてほしいのだ！🌿');
+  appendMsg('metan', '何でも遠慮なく聞いてね。二人でちゃんとサポートするから。');
+  setBubble('zundamon', 'ご質問はなんのだ？<br>なんでも聞いてほしいのだ！🌿');
 }
 
+/* ============================
+   開閉
+   ============================ */
 function toggleConcierge() {
   isOpen = !isOpen;
   document.getElementById('c-body').classList.toggle('closed', !isOpen);
-  const btn = document.getElementById('toggle-btn');
-  btn.classList.toggle('open', isOpen);
+  document.getElementById('toggle-btn').classList.toggle('open', isOpen);
 }
 
-function setPattern(n, el) {
-  document.querySelectorAll('.ptab').forEach(t => t.classList.remove('on'));
-  el.classList.add('on');
-  document.getElementById('pat1-msgs').style.display = n === 1 ? '' : 'none';
-  document.getElementById('pat2-msgs').style.display = n === 2 ? '' : 'none';
-  if (n === 2) {
-    document.getElementById('ai-alert').classList.add('show');
-    document.getElementById('bubble-text').innerHTML = '横尾さん、お疲れ様なのだ！🌿<br>今日も何かお手伝いできることはあるのだ？';
-    document.getElementById('quick-area').innerHTML =
-      '<button class="q-btn">受講生サポートについて</button><button class="q-btn">今日の未処理タスクを確認</button><button class="q-btn">よくある質問を見る</button>';
-  } else {
-    document.getElementById('ai-alert').classList.remove('show');
-    document.getElementById('bubble-text').innerHTML = 'ご質問はなんのだ？<br>なんでも聞いてほしいのだ！🌿';
-    document.getElementById('quick-area').innerHTML =
-      '<button class="q-btn">受講生がログインできない場合</button><button class="q-btn">有給休暇の確認方法は？</button>';
-  }
-}
+/* ============================
+   吹き出し自動ローテーション（アイドル時）
+   ============================ */
+const IDLE_BUBBLES = [
+  { speaker: 'zundamon', text: 'ご質問はなんのだ？<br>なんでも聞いてほしいのだ！🌿' },
+  { speaker: 'metan',    text: '困ったことがあれば<br>気軽に話しかけてね。' },
+  { speaker: 'zundamon', text: '今日も一日頑張るのだ！' },
+  { speaker: 'metan',    text: '情報は正確に伝えるから<br>安心して聞いていいわよ。' },
+];
+let idleIdx = 0;
+setInterval(() => {
+  if (isBusy) return;
+  const b = IDLE_BUBBLES[idleIdx % IDLE_BUBBLES.length];
+  setBubble(b.speaker, b.text);
+  idleIdx++;
+}, 4500);
+
+/* ============================
+   初期表示
+   ============================ */
+(function init() {
+  const msgs = document.getElementById('chat-msgs');
+  appendMsg('zundamon', 'ご質問はなんのだ？なんでも聞いてほしいのだ！🌿');
+  appendMsg('metan', '何でも遠慮なく聞いてね。二人でちゃんとサポートするから。');
+})();
 </script>
 </body>
 </html>

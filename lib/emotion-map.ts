@@ -1,40 +1,46 @@
-import { Emotion } from './types';
+import { Character, Emotion } from './types';
 
-export const EMOTION_MAP: Record<Emotion, {
+interface EmotionConfig {
   blendShapes: Record<string, number>;
-  voicevoxStyleId: number;
-  /** VOICEVOXスタイル名の候補 (先頭から順に試す) */
   voicevoxStyleCandidates: string[];
-}> = {
-  neutral:   {
-    blendShapes: { neutral: 1.0 },
-    voicevoxStyleId: 3,
-    voicevoxStyleCandidates: ['ノーマル', 'normal'],
+}
+
+interface CharacterConfig {
+  speakerName: string;       // VOICEVOX スピーカー名
+  modelPath: string;         // VRM ファイルパス
+  label: string;             // 表示名
+  color: string;             // テーマカラー (Tailwind)
+  emotions: Record<Emotion, EmotionConfig>;
+}
+
+export const CHARACTER_CONFIG: Record<Character, CharacterConfig> = {
+  zundamon: {
+    speakerName: 'ずんだもん',
+    modelPath: '/models/zundamon.vrm',
+    label: 'ずんだもん',
+    color: 'green',
+    emotions: {
+      neutral:   { blendShapes: { neutral: 1.0 },               voicevoxStyleCandidates: ['ノーマル'] },
+      happy:     { blendShapes: { happy: 0.9 },                 voicevoxStyleCandidates: ['あまあま'] },
+      angry:     { blendShapes: { angry: 1.0 },                 voicevoxStyleCandidates: ['ツンツン'] },
+      sad:       { blendShapes: { sad: 0.9 },                   voicevoxStyleCandidates: ['ノーマル', 'ささやき'] },
+      surprised: { blendShapes: { surprised: 1.0, happy: 0.3 }, voicevoxStyleCandidates: ['あまあま', 'ノーマル'] },
+      shy:       { blendShapes: { happy: 0.4, relaxed: 0.3 },   voicevoxStyleCandidates: ['ささやき', 'ヒソヒソ'] },
+    },
   },
-  happy:     {
-    blendShapes: { happy: 0.9 },
-    voicevoxStyleId: 1,
-    voicevoxStyleCandidates: ['あまあま', 'あまあま（英語）', 'ノーマル'],
-  },
-  angry:     {
-    blendShapes: { angry: 1.0 },
-    voicevoxStyleId: 7,
-    voicevoxStyleCandidates: ['ツンツン', 'ツンツン（英語）', 'ノーマル'],
-  },
-  sad:       {
-    blendShapes: { sad: 0.9 },
-    voicevoxStyleId: 3,
-    voicevoxStyleCandidates: ['ノーマル', 'ささやき'],
-  },
-  surprised: {
-    blendShapes: { surprised: 1.0, happy: 0.3 },
-    voicevoxStyleId: 1,
-    voicevoxStyleCandidates: ['あまあま', 'ノーマル'],
-  },
-  shy:       {
-    blendShapes: { happy: 0.4, relaxed: 0.3 },
-    voicevoxStyleId: 5,
-    voicevoxStyleCandidates: ['ささやき', 'ヒソヒソ', 'あまあま'],
+  metan: {
+    speakerName: '四国めたん',
+    modelPath: '/models/metan.vrm',
+    label: '四国めたん',
+    color: 'purple',
+    emotions: {
+      neutral:   { blendShapes: { neutral: 1.0 },               voicevoxStyleCandidates: ['ノーマル'] },
+      happy:     { blendShapes: { happy: 0.9 },                 voicevoxStyleCandidates: ['あまあま'] },
+      angry:     { blendShapes: { angry: 1.0 },                 voicevoxStyleCandidates: ['ツンツン'] },
+      sad:       { blendShapes: { sad: 0.9 },                   voicevoxStyleCandidates: ['ノーマル', 'ささやき'] },
+      surprised: { blendShapes: { surprised: 1.0, happy: 0.3 }, voicevoxStyleCandidates: ['ノーマル'] },
+      shy:       { blendShapes: { happy: 0.4, relaxed: 0.3 },   voicevoxStyleCandidates: ['ささやき', 'ヒソヒソ'] },
+    },
   },
 };
 
@@ -48,114 +54,59 @@ export const EMOTION_LABELS: Record<Emotion, string> = {
 };
 
 export const EMOTION_COLORS: Record<Emotion, string> = {
-  neutral:   'bg-slate-500',
-  happy:     'bg-amber-500',
+  neutral:   'bg-slate-400',
+  happy:     'bg-amber-400',
   angry:     'bg-red-500',
-  sad:       'bg-blue-500',
+  sad:       'bg-blue-400',
   surprised: 'bg-violet-500',
-  shy:       'bg-pink-500',
+  shy:       'bg-pink-400',
 };
 
 export const EMOTION_ICON_SYMBOL: Record<Emotion, string> = {
-  neutral:   '—',
-  happy:     '+',
-  angry:     '!',
-  sad:       '~',
-  surprised: '?',
-  shy:       '*',
+  neutral:   'ー',
+  happy:     '☆',
+  angry:     '×',
+  sad:       '…',
+  surprised: '!?',
+  shy:       '〇',
 };
 
 export const EMOTION_GLOW: Record<Emotion, string> = {
-  neutral:   'shadow-slate-500/40',
-  happy:     'shadow-amber-500/40',
+  neutral:   'shadow-slate-400/40',
+  happy:     'shadow-amber-400/40',
   angry:     'shadow-red-500/40',
-  sad:       'shadow-blue-500/40',
+  sad:       'shadow-blue-400/40',
   surprised: 'shadow-violet-500/40',
-  shy:       'shadow-pink-500/40',
+  shy:       'shadow-pink-400/40',
 };
 
 export const EMOTION_BORDER: Record<Emotion, string> = {
-  neutral:   'border-slate-500',
-  happy:     'border-amber-500',
+  neutral:   'border-slate-400',
+  happy:     'border-amber-400',
   angry:     'border-red-500',
-  sad:       'border-blue-500',
+  sad:       'border-blue-400',
   surprised: 'border-violet-500',
-  shy:       'border-pink-500',
+  shy:       'border-pink-400',
 };
 
 export const EMOTION_TEXT: Record<Emotion, string> = {
-  neutral:   'text-slate-600',
-  happy:     'text-amber-600',
-  angry:     'text-red-600',
-  sad:       'text-blue-600',
-  surprised: 'text-violet-600',
-  shy:       'text-pink-600',
+  neutral:   'text-slate-500',
+  happy:     'text-amber-500',
+  angry:     'text-red-500',
+  sad:       'text-blue-500',
+  surprised: 'text-violet-500',
+  shy:       'text-pink-500',
 };
 
-/** Per-emotion visual effect config for the VRM viewer area */
-export interface EmotionEffect {
-  bg: string;
-  vignette: string;
-  dotColor: string;
-  ring1: string;
-  ring2: string;
-  aura: string;
-  overlayBg: string;
-}
-
-export const EMOTION_EFFECTS: Record<Emotion, EmotionEffect> = {
-  neutral: {
-    bg:       '#f0faf4',
-    vignette: '#e8f5ee',
-    dotColor: '#16a34a18',
-    ring1:    'border-green-500/15',
-    ring2:    'border-emerald-400/15',
-    aura:     'rgba(22,163,74,0.10)',
-    overlayBg: '',
-  },
-  happy: {
-    bg:       '#fffbeb',
-    vignette: '#fef3c7',
-    dotColor: '#f59e0b18',
-    ring1:    'border-amber-400/20',
-    ring2:    'border-yellow-300/20',
-    aura:     'rgba(245,158,11,0.15)',
-    overlayBg: 'radial-gradient(ellipse at 50% 80%, rgba(251,191,36,0.18) 0%, transparent 70%)',
-  },
-  angry: {
-    bg:       '#fff5f5',
-    vignette: '#fee2e2',
-    dotColor: '#ef444418',
-    ring1:    'border-red-500/25',
-    ring2:    'border-orange-400/20',
-    aura:     'rgba(239,68,68,0.18)',
-    overlayBg: 'repeating-linear-gradient(135deg, transparent, transparent 18px, rgba(239,68,68,0.04) 18px, rgba(239,68,68,0.04) 20px)',
-  },
-  sad: {
-    bg:       '#eff6ff',
-    vignette: '#dbeafe',
-    dotColor: '#3b82f618',
-    ring1:    'border-blue-400/20',
-    ring2:    'border-sky-300/20',
-    aura:     'rgba(59,130,246,0.14)',
-    overlayBg: 'linear-gradient(180deg, transparent 40%, rgba(59,130,246,0.10) 100%)',
-  },
-  surprised: {
-    bg:       '#f5f3ff',
-    vignette: '#ede9fe',
-    dotColor: '#8b5cf618',
-    ring1:    'border-violet-500/20',
-    ring2:    'border-purple-300/20',
-    aura:     'rgba(139,92,246,0.16)',
-    overlayBg: 'radial-gradient(ellipse at 50% 50%, rgba(139,92,246,0.15) 0%, transparent 65%)',
-  },
-  shy: {
-    bg:       '#fdf2f8',
-    vignette: '#fce7f3',
-    dotColor: '#ec489918',
-    ring1:    'border-pink-400/20',
-    ring2:    'border-rose-300/20',
-    aura:     'rgba(236,72,153,0.14)',
-    overlayBg: 'radial-gradient(circle at 70% 30%, rgba(251,113,133,0.18) 0%, transparent 55%), radial-gradient(circle at 30% 70%, rgba(236,72,153,0.12) 0%, transparent 50%)',
-  },
+// 後方互換: 感情のエフェクト設定 (page.tsx の背景エフェクト用)
+export const EMOTION_EFFECTS: Record<Emotion, {
+  bg: string; dotColor: string; vignette: string;
+  overlayBg?: string; aura: string; ring1: string; ring2: string;
+}> = {
+  neutral:   { bg: 'from-slate-50 to-green-50',   dotColor: '#86efac', vignette: 'rgba(134,239,172,0.15)', aura: 'rgba(134,239,172,0.08)', ring1: 'border-green-200/30 w-[480px] h-[480px] -bottom-24 -left-24',  ring2: 'border-green-300/20 w-[320px] h-[320px] -bottom-10 -left-10'  },
+  happy:     { bg: 'from-yellow-50 to-amber-50',  dotColor: '#fcd34d', vignette: 'rgba(252,211,77,0.2)',   aura: 'rgba(252,211,77,0.12)',  ring1: 'border-yellow-300/40 w-[520px] h-[520px] -bottom-28 -left-28', ring2: 'border-amber-300/30 w-[340px] h-[340px] -bottom-12 -left-12'  },
+  angry:     { bg: 'from-red-50 to-orange-50',    dotColor: '#fca5a5', vignette: 'rgba(252,165,165,0.25)', overlayBg: 'rgba(239,68,68,0.04)', aura: 'rgba(239,68,68,0.1)', ring1: 'border-red-300/40 w-[500px] h-[500px] -bottom-24 -left-24', ring2: 'border-orange-300/30 w-[320px] h-[320px] -bottom-8 -left-8' },
+  sad:       { bg: 'from-blue-50 to-slate-100',   dotColor: '#93c5fd', vignette: 'rgba(147,197,253,0.2)',  aura: 'rgba(147,197,253,0.08)', ring1: 'border-blue-200/30 w-[480px] h-[480px] -bottom-24 -left-24',  ring2: 'border-slate-300/20 w-[300px] h-[300px] -bottom-8 -left-8'   },
+  surprised: { bg: 'from-violet-50 to-purple-50', dotColor: '#c4b5fd', vignette: 'rgba(196,181,253,0.2)',  aura: 'rgba(167,139,250,0.12)', ring1: 'border-violet-300/40 w-[540px] h-[540px] -bottom-28 -left-28', ring2: 'border-purple-300/30 w-[360px] h-[360px] -bottom-14 -left-14' },
+  shy:       { bg: 'from-pink-50 to-rose-50',     dotColor: '#fda4af', vignette: 'rgba(253,164,175,0.2)',  aura: 'rgba(251,113,133,0.1)',  ring1: 'border-pink-200/40 w-[480px] h-[480px] -bottom-24 -left-24',  ring2: 'border-rose-300/20 w-[300px] h-[300px] -bottom-8 -left-8'    },
 };
