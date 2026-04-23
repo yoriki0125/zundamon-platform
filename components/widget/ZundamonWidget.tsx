@@ -19,6 +19,7 @@ import type {
   WidgetInitConfig,
   WidgetMessage,
 } from '@/lib/widget-types';
+import { parseDialogueScript } from '@/lib/dialogue-parser';
 
 const VRMViewer = dynamic(() => import('@/components/VRMViewer'), { ssr: false });
 
@@ -136,6 +137,9 @@ export default function ZundamonWidget() {
   const [panelOpen, setPanelOpen] = useState(true);
   const [showControlPanel, setShowControlPanel] = useState<boolean>(!!config.showDebugPanel);
   const [bubble, setBubble] = useState<{ speaker: Character; text: string } | null>(null);
+  const [debugScript, setDebugScript] = useState<string>(
+    'ずんだ: こんにちは、今日はずんだ日和なのだ！(2)\nめたん: あらあら、また張り切っているのね。(6)\nぼくは空を飛べるのだ！_z5\nそんなわけないでしょ_m3'
+  );
 
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -555,7 +559,6 @@ export default function ZundamonWidget() {
                     </span>
                   </div>
                 </div>
-                <div className="w-px bg-gray-200" />
                 {/* 四国めたん */}
                 <div className="relative flex-1">
                   <VRMViewer
@@ -753,7 +756,105 @@ export default function ZundamonWidget() {
                   </button>
                 ))}
               </div>
-              <div className="mt-2 text-[10px] text-gray-500">
+
+              {/* 掛け合いスクリプト入力 ─────────────────────────── */}
+              {(() => {
+                const parsed = parseDialogueScript(debugScript, config.defaultEmotion ?? 'neutral');
+                return (
+                  <div className="mt-3 border-t border-violet-200 pt-3">
+                    <div className="text-[11px] font-bold text-violet-700 mb-1">
+                      🎭 掛け合いスクリプト入力
+                    </div>
+                    <div className="text-[10px] text-gray-600 mb-2 leading-relaxed">
+                      書式:{' '}
+                      <code className="bg-white px-1 rounded">ずんだ: テキスト(2)</code>{' '}
+                      /{' '}
+                      <code className="bg-white px-1 rounded">めたん: テキスト(3)</code>{' '}
+                      /{' '}
+                      <code className="bg-white px-1 rounded">テキスト_z1</code>{' '}
+                      /{' '}
+                      <code className="bg-white px-1 rounded">テキスト_m4</code>
+                      <br />
+                      感情番号: 1=ニュートラル / 2=喜び / 3=怒り / 4=悲しみ / 5=驚き / 6=照れ
+                      <br />
+                      話者: z/ずんだ/ずんだもん, m/めたん/メタン/四国めたん
+                    </div>
+
+                    <div className="grid grid-cols-[1fr_220px] gap-2">
+                      <textarea
+                        value={debugScript}
+                        onChange={(e) => setDebugScript(e.target.value)}
+                        rows={6}
+                        placeholder={'例）\nずんだ: こんにちは(2)\nめたん: よろしくね(6)\nやあ_z5\nあら_m3'}
+                        className="w-full rounded-md border border-violet-200 bg-white px-2 py-1.5 text-[11px] font-mono resize-y outline-none focus:border-violet-500 transition-colors"
+                      />
+                      <div className="rounded-md border border-violet-200 bg-white px-2 py-1.5 text-[10px] overflow-y-auto max-h-[180px]">
+                        <div className="font-bold text-violet-600 mb-1">
+                          解析プレビュー ({parsed.length}件)
+                        </div>
+                        {parsed.length === 0 ? (
+                          <div className="text-gray-400 text-[10px]">
+                            解析可能な行がありません
+                          </div>
+                        ) : (
+                          parsed.map((p, i) => (
+                            <div
+                              key={i}
+                              className={`mb-1 leading-tight ${
+                                p.character === 'zundamon' ? 'text-teal-700' : 'text-violet-700'
+                              }`}
+                            >
+                              <span className="font-bold">
+                                [{CHARACTER_CONFIG[p.character].label}/{EMOTION_LABELS[p.emotion]}]
+                              </span>{' '}
+                              <span className="text-gray-700">{p.text}</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        type="button"
+                        disabled={parsed.length === 0 || isLoading}
+                        onClick={() => {
+                          setIsLoading(true);
+                          for (const p of parsed) {
+                            queueRef.current.push(() =>
+                              playLine({ speaker: p.character, emotion: p.emotion, text: p.text })
+                            );
+                          }
+                          void runQueue();
+                        }}
+                        className="px-3 py-1.5 rounded-md bg-violet-600 text-white text-[11px] font-bold hover:bg-violet-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        ▶ 掛け合い再生 ({parsed.length})
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDebugScript('')}
+                        className="px-3 py-1.5 rounded-md border border-violet-300 text-violet-600 text-[11px] hover:bg-violet-100 transition-colors"
+                      >
+                        クリア
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDebugScript(
+                            'ずんだ: こんにちは、今日はずんだ日和なのだ！(2)\nめたん: あらあら、また張り切っているのね。(6)\nぼくは空を飛べるのだ！_z5\nそんなわけないでしょ_m3'
+                          )
+                        }
+                        className="px-3 py-1.5 rounded-md border border-violet-300 text-violet-600 text-[11px] hover:bg-violet-100 transition-colors"
+                      >
+                        サンプル
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <div className="mt-3 text-[10px] text-gray-500 border-t border-violet-200 pt-2">
                 tenant: <code className="bg-white px-1 rounded">{config.tenantId ?? '-'}</code>{' '}
                 user: <code className="bg-white px-1 rounded">{config.userId ?? '-'}</code>{' '}
                 endpoint: <code className="bg-white px-1 rounded">{config.aiEndpoint ?? 'fallback (sample)'}</code>
