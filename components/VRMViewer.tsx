@@ -8,12 +8,14 @@ import { VRM, VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 export interface VRMViewerHandle {
   setBlendShapes: (shapes: Record<string, number>) => void;
   setMouthOpen: (value: number) => void;
+  setListening: (value: boolean) => void;
 }
 
 interface VRMViewerProps {
   className?: string;
   modelPath?: string;
   initialRotationY?: number;
+  animationPreset?: 'spin20';
 }
 
 /* ── クロマキー合成用シェーダー ─────────────────────────────
@@ -61,7 +63,7 @@ function applyInitialPose(vrm: VRM) {
 }
 
 const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
-  function VRMViewer({ className, modelPath = '/models/zundamon.vrm', initialRotationY = Math.PI }, ref) {
+  function VRMViewer({ className, modelPath = '/models/zundamon.vrm', initialRotationY = Math.PI, animationPreset }, ref) {
     const mountRef = useRef<HTMLDivElement>(null);
     const errorRef = useRef<HTMLDivElement>(null);
     const vrmRef = useRef<VRM | null>(null);
@@ -76,8 +78,17 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
     const quadSceneRef = useRef<THREE.Scene | null>(null);
     const quadCameraRef = useRef<THREE.OrthographicCamera | null>(null);
     const readyRef = useRef(false);
+    const isListeningRef = useRef(false);
+    const stabilizeFramesRef = useRef(0); // 0 = 安定化完了, >0 = 残りフレーム数
     const initialRotationYRef = useRef(initialRotationY);
     useEffect(() => { initialRotationYRef.current = initialRotationY; }, [initialRotationY]);
+    // ドラッグと spin が共有する現在のY回転値
+    const rotationYRef = useRef(initialRotationY);
+    // spin 用
+    const spinTimerRef   = useRef(0);   // 次のスピンまでの経過秒
+    const spinActiveRef  = useRef(false);
+    const spinProgressRef = useRef(0);   // 0→1 でスピン進行
+    const spinStartRotRef = useRef(0);   // スピン開始時の rotation.y
     // 口パク用の"生"モーフターゲット参照 (expression経由だと目にも干渉するため直接操作する)
     const mouthMorphsRef = useRef<Array<{ influences: number[]; index: number }>>([]);
     const mouthFallbackExprRef = useRef<string | null>(null);
@@ -88,6 +99,9 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
       },
       setMouthOpen(value: number) {
         mouthOpenRef.current = value;
+      },
+      setListening(value: boolean) {
+        isListeningRef.current = value;
       },
     }));
 
@@ -250,8 +264,52 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
 
             const head = vrm.humanoid.getRawBoneNode('head');
             if (head) {
-              head.rotation.y = Math.sin(elapsed * 0.4) * 0.06;
-              head.rotation.z = Math.sin(elapsed * 0.6) * 0.02;
+              if (isListeningRef.current) {
+                // 頷き: 約2秒に1回、前傾してゆっくり戻る
+                const nodPhase = (elapsed * 0.5) % 1;
+                head.rotation.x = Math.pow(Math.max(0, Math.sin(nodPhase * Math.PI)), 3) * 0.18;
+                head.rotation.y = Math.sin(elapsed * 0.3) * 0.03;
+                head.rotation.z = Math.sin(elapsed * 0.5) * 0.01;
+              } else {
+                head.rotation.x = 0;
+                head.rotation.y = Math.sin(elapsed * 0.4) * 0.06;
+                head.rotation.z = Math.sin(elapsed * 0.6) * 0.02;
+              }
+            }
+
+            // ── spin20: 20秒周期で片足一回転 ──────────────────────────
+            if (animationPreset === 'spin20') {
+              const SPIN_DURATION = 1.8;
+              if (!spinActiveRef.current) {
+                spinTimerRef.current += delta;
+                if (spinTimerRef.current >= 20) {
+                  spinTimerRef.current = 0;
+                  spinActiveRef.current = true;
+                  spinProgressRef.current = 0;
+                  spinStartRotRef.current = vrm.scene.rotation.y;
+                }
+              }
+              if (spinActiveRef.current) {
+                spinProgressRef.current += delta / SPIN_DURATION;
+                if (spinProgressRef.current >= 1) {
+                  spinProgressRef.current = 1;
+                  spinActiveRef.current = false;
+                  vrm.scene.rotation.y = spinStartRotRef.current;
+                  rotationYRef.current = spinStartRotRef.current;
+                } else {
+                  const t = spinProgressRef.current;
+                  const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+                  vrm.scene.rotation.y = spinStartRotRef.current + ease * Math.PI * 2;
+                  // 右足を膝上まで持ち上げる
+                  const legLift = Math.sin(t * Math.PI);
+                  vrm.humanoid?.getRawBoneNode('rightUpperLeg')
+                    ?.rotation.set(legLift * 0.9, 0, 0);   // 正→膝が前に上がる
+                  vrm.humanoid?.getRawBoneNode('rightLowerLeg')
+                    ?.rotation.set(-legLift * 1.0, 0, 0);  // 負→ひざ折りかかとが後ろへ
+                  vrm.humanoid?.getRawBoneNode('rightFoot')
+                    ?.rotation.set(legLift * 0.3, 0, 0);
+                }
+              }
             }
 
             const lArm = vrm.humanoid.getRawBoneNode('leftUpperArm');
@@ -283,6 +341,13 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
         renderer.setClearColor(0x000000, 0);
         renderer.clear();
         renderer.render(quadScene, quadCamera);
+
+        if (stabilizeFramesRef.current > 0) {
+          stabilizeFramesRef.current--;
+          if (stabilizeFramesRef.current === 0) {
+            renderer.domElement.style.opacity = '1';
+          }
+        }
       };
       animate();
 
@@ -302,14 +367,13 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
       // ドラッグで回転
       let isDragging = false;
       let prevX = 0;
-      let rotationY = initialRotationYRef.current;
 
       const onMouseDown = (e: MouseEvent) => { isDragging = true; prevX = e.clientX; };
       const onMouseMove = (e: MouseEvent) => {
         if (!isDragging || !vrmRef.current) return;
-        rotationY += (e.clientX - prevX) * 0.01;
+        rotationYRef.current += (e.clientX - prevX) * 0.01;
         prevX = e.clientX;
-        vrmRef.current.scene.rotation.y = rotationY;
+        vrmRef.current.scene.rotation.y = rotationYRef.current;
       };
       const onMouseUp = () => { isDragging = false; };
 
@@ -352,6 +416,7 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
         if (!scene || !renderer || !renderTarget || !camera || !quadScene || !quadCamera) return;
 
         // 既存モデルをフェードアウトして削除
+        stabilizeFramesRef.current = 0;
         renderer.domElement.style.opacity = '0';
         if (vrmRef.current) {
           scene.remove(vrmRef.current.scene);
@@ -373,6 +438,7 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
             VRMUtils.combineSkeletons(gltf.scene);
 
             vrm.scene.rotation.y = initialRotationYRef.current;
+            rotationYRef.current = initialRotationYRef.current;
             scene.add(vrm.scene);
             vrmRef.current = vrm;
 
@@ -409,18 +475,10 @@ const VRMViewer = forwardRef<VRMViewerHandle, VRMViewerProps>(
             }
 
             applyInitialPose(vrm);
-            vrm.update(0);
 
-            // 初回フレームを描画してからフェードイン
-            renderer.setRenderTarget(renderTarget);
-            renderer.setClearColor(CHROMA_COLOR, 1);
-            renderer.clear();
-            renderer.render(scene, camera);
-            renderer.setRenderTarget(null);
-            renderer.setClearColor(0x000000, 0);
-            renderer.clear();
-            renderer.render(quadScene, quadCamera);
-            renderer.domElement.style.opacity = '1';
+            // Spring bone が落ち着くまで animate ループ内で N フレーム待ってからフェードイン
+            // (別の rAF ループを立てると vrm.update が1フレームに2回走り姿勢が崩れるため)
+            stabilizeFramesRef.current = 12;
 
             errorRef.current?.classList.add('hidden');
           },
