@@ -1,86 +1,273 @@
-# ずんだもん喋らせ台
+# Zundamon Platform 🌱
 
-テキストと感情タグを入力すると、3Dずんだもんが感情に応じた表情・声で喋る社内ツールです。
+ずんだもん × 四国めたん の **AI コンシェルジュ プラットフォーム**。
+質問テキストを投げると 2 体の VRM 3D キャラクターが掛け合いで回答し、VOICEVOX で音声合成、感情に応じた表情変化と口パクまで行います。
 
-## 前提条件
-
-- **`public/models/zundamon.vrm`** が配置済みであること
-- ローカル開発時: Node.js 20+ / VOICEVOXアプリ起動済み
-- サーバー運用時: Docker / Docker Compose
-
-## ローカル開発
-
-### 1. VRMモデルの配置
-
-```
-public/models/zundamon.vrm
-```
-
-> **注意**: VRMモデルの利用は配布元の規約に従ってください。社内利用であっても、モデルのライセンス条件を必ず確認してから使用してください。
-
-### 2. VOICEVOXエンジンの起動
-
-VOICEVOXアプリを起動してください (`localhost:50021` で動作)。
-
-### 3. 起動
-
-```bash
-npm install
-npm run dev
-```
-
-ブラウザで http://localhost:3000 を開いてください。
+任意のサイトに `<script>` 1 本で組み込める **汎用 iframe ウィジェット** としても配信できます。
 
 ---
 
-## Docker (サーバー運用)
+## 🎯 主な機能
+
+| 機能 | 説明 |
+| --- | --- |
+| 3D キャラクター描画 | VRM ファイルを Three.js + @pixiv/three-vrm でリアルタイム表示。呼吸・横揺れ・表情ブレンドシェイプ対応。 |
+| 感情マッピング | `neutral / happy / sad / angry / surprised / shy` などの感情タグ → 表情 + VOICEVOX スタイル ID へ自動変換。 |
+| 音声合成 (VOICEVOX) | ローカル VOICEVOX エンジン (`localhost:50021`) で発話。スタイル候補から最適な ID を解決。 |
+| リップシンク | 合成音声の波形解析からリアルタイムに口を動かす (`lib/lipsync.ts`)。 |
+| 掛け合い対話 | `ずんだもん:` / `めたん:` プレフィックス、または `_z1` / `_m2` サフィックスで台本を解析し、1 行ずつ順次再生。 |
+| AI 連携 (Dify) | `/api/dify` 経由で Dify Chatflow に接続。SSE ストリーミングをパースしてテキスト化。 |
+| 汎用 iframe ウィジェット | `<script src=".../zundamon-widget-sdk.js">` 1 本で任意サイトに埋め込み可能。`embedded` / `floating` / `fullscreen` 3 モード対応。 |
+| SP (モバイル) 対応 | レスポンシブ。サイドバー / チャット履歴はドロワー化。3D モデルは縮小表示。 |
+| デバッグパネル | `Ctrl + Shift + D` で感情お試し・台本テスター起動。 |
+
+---
+
+## 📦 技術スタック
+
+- **フレームワーク**: Next.js 16.2.4 (App Router, Turbopack) / React 19 / TypeScript 5
+- **3D**: Three.js + @pixiv/three-vrm
+- **UI**: Tailwind CSS / shadcn-ui 派生コンポーネント
+- **音声**: VOICEVOX (HTTP API)
+- **AI**: Dify Chatflow (Server-Sent Events)
+- **配布**: Docker / Docker Compose
+
+> ⚠️ Next.js 16 は破壊的変更を含みます。実装前に `node_modules/next/dist/docs/` を必ず確認してください (`AGENTS.md` 参照)。
+
+---
+
+## 🗂 ディレクトリ構成
+
+```
+zundamon-platform/
+├── app/
+│   ├── page.tsx                  # スタジオ画面 (DialoguePanel + VRMViewer)
+│   ├── layout.tsx
+│   ├── widget/page.tsx           # iframe で読み込まれるウィジェット本体
+│   └── api/
+│       ├── speak/route.ts        # テキスト → 発話テキスト + blendShape + styleId
+│       ├── dify/route.ts         # Dify Chatflow プロキシ (SSE → テキスト)
+│       └── widget-chat/route.ts  # ウィジェット既定 AI エンドポイント (lines[] を返す)
+├── components/
+│   ├── VRMViewer.tsx             # VRM 3D 描画
+│   ├── DialoguePanel.tsx         # スタジオ画面の入力 + 履歴
+│   ├── SpeakPanel.tsx
+│   ├── HistoryList.tsx
+│   ├── widget/
+│   │   └── ZundamonWidget.tsx    # ウィジェット UI (postMessage 受信含む)
+│   └── ui/                       # shadcn 系プリミティブ
+├── lib/
+│   ├── voicevox.ts               # VOICEVOX クライアント・スタイル ID 解決
+│   ├── emotion-map.ts            # 感情 → 表情 / スタイル候補マスタ
+│   ├── lipsync.ts                # 音声波形 → 口パク
+│   ├── dialogue-parser.ts        # ずんだ/めたん 台本パーサ
+│   ├── zundamon-transform.ts     # 「〜なのだ」変換等
+│   ├── widget-types.ts           # SDK ⇔ iframe 共有型
+│   └── types.ts
+├── public/
+│   ├── models/zundamon.vrm       # ⚠ 別途配置必要
+│   ├── models/metan.vrm          # ⚠ 別途配置必要
+│   └── widget/
+│       ├── zundamon-widget-sdk.js
+│       └── host-demo.html
+├── docs/
+│   ├── EMBEDDING_GUIDE.md        # ウィジェット埋め込み詳細ガイド
+│   └── WIDGET_INTEGRATION.md
+├── docker-compose.yml
+├── Dockerfile
+└── AGENTS.md                     # Next.js 16 利用上の注意
+```
+
+---
+
+## 🚀 セットアップ
 
 ### 前提
 
-- Docker / Docker Compose がインストール済みであること
-- `public/models/zundamon.vrm` が配置済みであること
+- **Node.js 20+**
+- **VOICEVOX アプリ** (ローカル開発時) または **Docker** (運用時)
+- VRM モデル: `public/models/zundamon.vrm` / `public/models/metan.vrm`
+  > VRM のライセンスは配布元規約に従ってください。
 
-### 起動
+### ローカル開発
+
+```bash
+# 1. 依存インストール
+npm install
+
+# 2. 環境変数を設定
+cat > .env.local <<'EOF'
+DIFY_API_KEY=app-xxxxxxxxxxxxxxxxxxxxxxxx
+DIFY_API_URL=https://api.dify.ai/v1/chat-messages
+VOICEVOX_URL=http://localhost:50021
+EOF
+
+# 3. VOICEVOX エンジンを起動 (アプリを開く)
+
+# 4. dev サーバー起動
+npm run dev
+```
+
+- スタジオ画面: http://localhost:3000
+- ウィジェット単体: http://localhost:3000/widget
+- 埋め込みデモ: http://localhost:3000/widget/host-demo.html
+
+### Docker
 
 ```bash
 docker compose up --build
 ```
 
-- アプリ: http://サーバーIP:3000
-- VOICEVOXエンジン: http://サーバーIP:50021 (内部のみで使用)
+GPU 版 VOICEVOX を使うには `docker-compose.yml` のコメントを参照。
 
-### GPU版VOICEVOXを使う場合
+---
 
-`docker-compose.yml` 内のコメントを参照してください。
+## 🔌 API リファレンス
 
-### 停止
+### `POST /api/speak`
 
-```bash
-docker compose down
+テキストと感情を受け取り、VOICEVOX 用 styleId と表情データを返す。
+
+**Request**
+```json
+{ "text": "こんにちはなのだ", "emotion": "happy", "character": "zundamon" }
+```
+
+**Response**
+```json
+{
+  "spokenText": "こんにちはなのだ！",
+  "blendShapes": { "happy": 1.0 },
+  "voicevoxStyleId": 1,
+  "character": "zundamon"
+}
+```
+
+URL を含むテキストは VOICEVOX が誤読するため自動で除去されます。
+
+### `POST /api/dify`
+
+Dify Chatflow への薄いプロキシ。SSE をサーバ側で読み切ってプレーンテキストに圧縮。
+
+**Request**
+```json
+{ "query": "有給の取り方を教えて", "conversationId": "", "userId": "u1" }
+```
+
+**Response**
+```json
+{ "answer": "ずんだ: 有給は勤怠画面から申請なのだ(1)", "conversationId": "abc-123" }
+```
+
+### `POST /api/widget-chat`
+
+ウィジェットの**既定** AI エンドポイント。`/api/dify` の応答を `lines[]` 配列に整形。
+
+**Request**
+```json
+{
+  "input": "有給の確認方法は？",
+  "history": [],
+  "context": {},
+  "tenantId": "demo",
+  "userId": "u1",
+  "conversationId": ""
+}
+```
+
+**Response**
+```json
+{
+  "lines": [
+    { "speaker": "zundamon", "text": "勤怠画面から確認なのだ！", "emotion": "happy" },
+    { "speaker": "metan",    "text": "右上のメニューからどうぞ。", "emotion": "neutral" }
+  ],
+  "conversationId": "abc-123"
+}
 ```
 
 ---
 
-## Step別 動作確認手順
+## 🧩 ウィジェット埋め込み
 
-### Step 1: VRM表示
-- `npm run dev` でずんだもんが画面中央に表示される
-- ゆっくり呼吸している (胸の上下)
-- ブラウザのDevToolsコンソールに利用可能なExpression名が出力される
-- VRMファイルが無い場合はエラーメッセージが表示される
+詳細は [`docs/EMBEDDING_GUIDE.md`](docs/EMBEDDING_GUIDE.md) を参照。最小例:
 
-### Step 2〜5
-(実装後に追記予定)
+```html
+<div id="ai-concierge-root"></div>
+<script src="https://YOUR-DOMAIN/widget/zundamon-widget-sdk.js"></script>
+<script>
+  const widget = window.ZundamonWidget.init({
+    container: '#ai-concierge-root',
+    baseUrl: 'https://YOUR-DOMAIN',
+    mode: 'embedded',           // 'embedded' | 'floating' | 'fullscreen'
+    title: 'AIコンシェルジュ',
+    subtitle: 'ずんだもん × 四国めたん',
+    suggestedPrompts: ['有給休暇の確認方法は？'],
+    theme: { primaryColor: '#14b8a6', accentColor: '#8b5cf6' },
+  });
+
+  // ホストから外部制御
+  widget.sendMessage('受講生がログインできない');
+  widget.setContext({ page: 'dashboard' });
+</script>
+```
+
+`aiEndpoint` を渡さなければ同梱の `/api/widget-chat` (Dify 接続) にフォールバックします。
 
 ---
 
-## 感情タグ一覧
+## 🎭 感情タグ
 
-| タグ | 説明 | VOICEVOXスタイル |
-|---|---|---|
-| neutral | ノーマル | 3 |
-| happy | うれしい | 1 (あまあま) |
-| angry | おこ | 7 (ツンツン) |
-| sad | かなしい | 3 |
-| surprised | びっくり | 1 |
-| shy | はずかしい | 5 (ささやき) |
+| タグ | 用途 | VOICEVOX スタイル候補 (ずんだもん) |
+| --- | --- | --- |
+| `neutral`   | 平常               | 3 (ノーマル) |
+| `happy`     | うれしい           | 1 (あまあま) |
+| `sad`       | かなしい           | 3 |
+| `angry`     | おこ               | 7 (ツンツン) |
+| `surprised` | びっくり           | 1 |
+| `shy`       | はずかしい         | 5 (ささやき) |
+| `thinking`  | 考え中             | 3 |
+
+スタイル ID はランタイムで `lib/voicevox.ts` の `resolveStyleId()` がエンジンに問い合わせて解決します。
+
+---
+
+## 📝 台本フォーマット
+
+`lib/dialogue-parser.ts` は以下の表記をパースします（混在可）。
+
+```
+ずんだもん：有給は勤怠画面なのだ_z1
+めたん：右上のメニューからね_m2
+```
+
+- プレフィックス: `ずんだもん:` / `ずんだ:` / `四国めたん:` / `めた:` / `metan:` / `zundamon:` 等
+- サフィックス: `_z1`〜`_z6` (ずんだもん) / `_m1`〜`_m6` (めたん) — 数字は感情番号
+- プレフィックスとサフィックスが両方ある場合も正しく剥離して感情を上書き
+
+---
+
+## 🛠 開発 Tips
+
+- `Ctrl + Shift + D` でデバッグパネル表示（感情切替 / 台本テスター）
+- ホスト HTML を `file://` で開いた場合、SDK は自動で `http://localhost:3000` にフォールバック
+- ハイドレーションエラーは ColorZilla 等の拡張機能由来のため `suppressHydrationWarning` で抑止済み
+- `npm run lint` / `npm run build` で本番ビルド確認
+
+---
+
+## 📄 ライセンス / クレジット
+
+- VRM モデル / VOICEVOX 音源は各配布元の規約に従ってください
+- 本リポジトリのソースコードは社内利用を想定しています
+
+---
+
+## 🗺 ロードマップ
+
+- [ ] 署名付きトークンの検証 API
+- [ ] テナントごとのナレッジ切り替え
+- [ ] human escalation
+- [ ] floating モードの iframe 内ヘッダー制御
+- [ ] allowed origin のサーバー側検証
+- [ ] WebRTC / WebSocket でのストリーミング再生
