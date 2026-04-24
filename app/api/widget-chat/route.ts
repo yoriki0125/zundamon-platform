@@ -1,5 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
+import dns from 'node:dns';
 import type { Character, Emotion } from '@/lib/types';
+
+// Node 20+ は既定で IPv6 優先で DNS を解決するが、Windows 環境 + Dify の組み合わせで
+// IPv6 経路が ECONNRESET を返すことがあるため IPv4 を優先させる。
+dns.setDefaultResultOrder('ipv4first');
+
+// 開発環境で企業ネットワークの SSL インスペクション (自己署名ルート CA) に遭遇した際の
+// 回避策。NODE_ENV !== 'production' かつ ALLOW_INSECURE_TLS=1 のときのみ TLS 検証を無効化。
+// 本番では絶対に使わない。
+if (process.env.NODE_ENV !== 'production' && process.env.ALLOW_INSECURE_TLS === '1') {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
 
 type SpeakerLine = { speaker: Character; emotion: Emotion; text: string };
 

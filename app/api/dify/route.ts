@@ -1,4 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import dns from 'node:dns';
+
+// Node 20+ の IPv6 優先 DNS で Dify 接続が ECONNRESET になる環境向けの回避策。
+dns.setDefaultResultOrder('ipv4first');
+
+// 開発環境専用: 企業ネットワーク SSL インスペクション回避 (ALLOW_INSECURE_TLS=1 のとき)。
+if (process.env.NODE_ENV !== 'production' && process.env.ALLOW_INSECURE_TLS === '1') {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
 
 export async function POST(req: NextRequest) {
   try {
