@@ -151,7 +151,7 @@ export default function ZundamonWidget() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [voicevoxOk, setVoicevoxOk] = useState<boolean | null>(null);
-  const [panelOpen, setPanelOpen] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [mobileChatOpen, setMobileChatOpen] = useState(false);
   const [showControlPanel, setShowControlPanel] = useState<boolean>(!!config.showDebugPanel);
@@ -581,59 +581,121 @@ export default function ZundamonWidget() {
 
   // ── Render ──────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen w-full flex flex-col" style={{ background: '#f5f6f8' }}>
-      <div className="concierge-wrap flex flex-col flex-1 bg-white shadow-[0_8px_32px_rgba(0,0,0,0.08)] overflow-hidden rounded-b-[24px] md:rounded-b-[28px]">
-        {/* ── タイトルバー (プルダウン開閉) ─────────────────────────── */}
-        <div className="c-bar flex items-center justify-between px-3 md:px-4 py-2 select-none border-b border-gray-100 gap-2">
-          {/* モバイル: サイドバー開閉ボタン */}
-          <button
-            type="button"
-            onClick={() => setMobileSidebarOpen((v) => !v)}
-            className="md:hidden w-8 h-8 rounded-lg flex items-center justify-center text-gray-600 hover:bg-gray-100 flex-shrink-0"
-            aria-label="会話履歴"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
-            </svg>
-          </button>
-          <div
-            className="flex items-center gap-2 cursor-pointer flex-1 min-w-0"
-            onClick={() => setPanelOpen((v) => !v)}
-          >
-            <span className="text-xs md:text-sm font-bold text-gray-800 truncate">
-              <span className="hidden sm:inline">{config.title ?? 'AIコンシェルジュ'}（ずんだもん × 四国めたん）</span>
-              <span className="sm:hidden">{config.title ?? 'AIコンシェルジュ'}</span>
-            </span>
-            <span className="hidden sm:inline text-[10px] px-2 py-0.5 rounded-full bg-teal-50 text-teal-700">β版</span>
-            {showControlPanel && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 font-bold">
-                DEBUG
-              </span>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={() => setPanelOpen((v) => !v)}
-            className="w-7 h-7 rounded-full text-white text-sm flex items-center justify-center transition-transform"
-            style={{
-              backgroundColor: primaryColor,
-              transform: panelOpen ? 'rotate(180deg)' : 'none',
-            }}
-            aria-label={panelOpen ? '閉じる' : '開く'}
-          >
-            ▲
-          </button>
-        </div>
+    <div className="w-full flex flex-col">
+      <div className="concierge-wrap flex flex-col bg-white shadow-[0_-4px_24px_rgba(0,0,0,0.12)] overflow-hidden">
 
-        {/* ── 本体 (開閉可能) ──────────────────────────────────────── */}
-        <div
-          className="flex flex-col transition-all duration-500 ease-in-out overflow-hidden"
-          style={{
-            height: panelOpen ? 'calc(100dvh - 40px)' : '0px',
-            opacity: panelOpen ? 1 : 0,
-          }}
-        >
-          <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden relative">
+        {/* ══════════════════════════════════════════════════════════
+            折りたたみ状態: スリム入力バー (~52px)
+        ════════════════════════════════════════════════════════════ */}
+        {!panelOpen && (
+          <div className="flex items-center gap-2 px-3 py-2" style={{ minHeight: '52px' }}>
+            {/* ブランドアイコン + タイトル */}
+            <div
+              className="flex items-center gap-1.5 flex-shrink-0 cursor-pointer select-none"
+              onClick={() => setPanelOpen(true)}
+              title="展開する"
+            >
+              <span
+                className="w-7 h-7 rounded-full flex items-center justify-center text-white text-sm flex-shrink-0"
+                style={{ backgroundColor: primaryColor }}
+              >
+                🤖
+              </span>
+              <span className="hidden sm:block text-xs font-bold text-gray-700 whitespace-nowrap">
+                {config.title ?? 'AIコンシェルジュ'}
+              </span>
+            </div>
+            {/* 入力フィールド */}
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  const t = input.trim();
+                  if (!t) return;
+                  setInput('');
+                  setPanelOpen(true);
+                  void runConversation(t);
+                }
+              }}
+              placeholder="AIに相談したいことを入力してください..."
+              rows={1}
+              className="flex-1 rounded-full border border-gray-300 px-4 py-1.5 text-[13px] resize-none outline-none focus:border-teal-500 transition-colors leading-snug"
+              style={{ minHeight: '34px', maxHeight: '34px' }}
+            />
+            {/* 送信ボタン */}
+            <button
+              type="button"
+              onClick={() => {
+                const t = input.trim();
+                if (!t) return;
+                setInput('');
+                setPanelOpen(true);
+                void runConversation(t);
+              }}
+              disabled={isLoading || !input.trim()}
+              className="px-3 py-1.5 rounded-full text-white text-xs font-bold flex-shrink-0 disabled:opacity-40 disabled:cursor-not-allowed shadow transition-opacity"
+              style={{ backgroundColor: primaryColor }}
+            >
+              {isLoading ? '...' : '送信'}
+            </button>
+            {/* ▲ 展開ボタン */}
+            <button
+              type="button"
+              onClick={() => setPanelOpen(true)}
+              className="w-8 h-8 rounded-full border border-gray-200 bg-gray-50 text-gray-500 text-xs flex items-center justify-center hover:bg-gray-100 transition-colors flex-shrink-0"
+              aria-label="展開する"
+            >
+              ▲
+            </button>
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════
+            展開状態: フル表示 (固定高さ ~680px)
+        ════════════════════════════════════════════════════════════ */}
+        {panelOpen && (
+          <div className="flex flex-col" style={{ height: '680px' }}>
+
+            {/* ── スリムヘッダー ─────────────────────────────────── */}
+            <div className="c-bar flex items-center justify-between px-3 md:px-4 border-b border-gray-100 select-none flex-shrink-0" style={{ height: '44px' }}>
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                {/* モバイル: サイドバー開閉 */}
+                <button
+                  type="button"
+                  onClick={() => setMobileSidebarOpen((v) => !v)}
+                  className="md:hidden w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 hover:bg-gray-100 flex-shrink-0"
+                  aria-label="会話履歴"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+                  </svg>
+                </button>
+                <span className="text-xs font-bold text-gray-700 truncate">
+                  🌿💜 {config.subtitle ?? config.title ?? 'AIコンシェルジュ'}
+                  <span className="hidden sm:inline ml-1 font-normal text-gray-400">（ずんだもん × 四国めたん）</span>
+                </span>
+                {showControlPanel && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 font-bold flex-shrink-0">DEBUG</span>
+                )}
+              </div>
+              {/* ▼ 閉じるボタン */}
+              <button
+                type="button"
+                onClick={() => setPanelOpen(false)}
+                className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 flex-shrink-0 px-2 py-1 rounded-md hover:bg-gray-100 transition-colors"
+                aria-label="閉じる"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="18 15 12 9 6 15"/>
+                </svg>
+                <span className="hidden sm:inline">閉じる</span>
+              </button>
+            </div>
+
+            {/* ── コンテンツ本体 (flex-1: ヘッダーと入力バーを除いた高さ) ── */}
+            <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden relative">
             {/* ── 左: 会話履歴 (SPではドロワー) ──────────────────── */}
             {mobileSidebarOpen && (
               <div
@@ -1096,7 +1158,8 @@ export default function ZundamonWidget() {
               </div>
             </div>
           )}
-        </div>
+            </div>
+          )}
       </div>
     </div>
   );

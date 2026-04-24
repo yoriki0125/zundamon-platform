@@ -22,7 +22,8 @@
     iframe.style.background = 'transparent';
     iframe.style.display = 'block';
     iframe.style.overflow = 'hidden';
-    iframe.style.height = mode === 'fullscreen' ? '100%' : '640px';
+    iframe.style.transition = 'height 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+    iframe.style.height = mode === 'fullscreen' ? '100%' : '52px';
     return iframe;
   }
 
@@ -36,7 +37,7 @@
         baseUrl: window.location.origin,
         mode: 'embedded',
         autoResize: true,
-        minHeight: 620,
+        minHeight: 52,
         maxHeight: 960,
         floatingWidth: 420,
         floatingHeight: 760,
