@@ -174,18 +174,19 @@ export default function ZundamonWidget() {
     );
   }, []);
 
+  // ウィジェット最外 div への ref — html/body の h-full による誤測定を避けるため
+  // document.body ではなくウィジェット自身の offsetHeight を基準にする
+  const widgetRootRef = useRef<HTMLDivElement>(null);
   const lastHeightRef = useRef<number>(0);
   const resizeRafRef = useRef<number>(0);
   const postResize = useCallback(() => {
-    if (typeof document === 'undefined') return;
-    // rAF でまとめ、高さが 4px 以上変わった時のみ親へ通知
+    if (typeof window === 'undefined') return;
     if (resizeRafRef.current) return;
     resizeRafRef.current = requestAnimationFrame(() => {
       resizeRafRef.current = 0;
-      const doc = document.documentElement;
-      const body = document.body;
-      const height = Math.max(body.scrollHeight, body.offsetHeight, doc.clientHeight, doc.scrollHeight, doc.offsetHeight);
-      if (Math.abs(height - lastHeightRef.current) < 4) return;
+      const height = widgetRootRef.current?.offsetHeight ?? 0;
+      if (height < 1) return;
+      if (Math.abs(height - lastHeightRef.current) < 2) return;
       lastHeightRef.current = height;
       emit('zundamon:resize', { height });
     });
@@ -211,12 +212,21 @@ export default function ZundamonWidget() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    const target = widgetRootRef.current;
+    if (!target) return;
     const observer = new ResizeObserver(() => postResize());
-    observer.observe(document.body);
+    observer.observe(target);
     resizeObserverRef.current = observer;
     postResize();
     return () => { observer.disconnect(); resizeObserverRef.current = null; };
   }, [postResize]);
+
+  // panelOpen 切替時に即座にサイズ通知 (ResizeObserver の遅延を補完)
+  useEffect(() => {
+    // rAF を 2 フレーム待つことで DOM 反映後に測定できる
+    const id = requestAnimationFrame(() => requestAnimationFrame(() => postResize()));
+    return () => cancelAnimationFrame(id);
+  }, [panelOpen, postResize]);
 
   useEffect(() => {
     emit('zundamon:ready', { version: '0.2.0', mode: config.mode ?? 'embedded' });
@@ -581,7 +591,7 @@ export default function ZundamonWidget() {
 
   // ── Render ──────────────────────────────────────────────────────
   return (
-    <div className="w-full flex flex-col">
+    <div ref={widgetRootRef} className="w-full flex flex-col">
       <div className="concierge-wrap flex flex-col bg-white shadow-[0_-4px_24px_rgba(0,0,0,0.12)] overflow-hidden rounded-b-[20px] md:rounded-b-[24px]">
 
         {/* ══════════════════════════════════════════════════════════
