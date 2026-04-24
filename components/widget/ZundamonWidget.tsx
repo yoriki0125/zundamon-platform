@@ -582,7 +582,7 @@ export default function ZundamonWidget() {
   // ── Render ──────────────────────────────────────────────────────
   return (
     <div className="w-full flex flex-col">
-      <div className="concierge-wrap flex flex-col bg-white shadow-[0_-4px_24px_rgba(0,0,0,0.12)] overflow-hidden">
+      <div className="concierge-wrap flex flex-col bg-white shadow-[0_-4px_24px_rgba(0,0,0,0.12)] overflow-hidden rounded-b-[20px] md:rounded-b-[24px]">
 
         {/* ══════════════════════════════════════════════════════════
             折りたたみ状態: スリム入力バー (~52px)
@@ -596,14 +596,16 @@ export default function ZundamonWidget() {
               title="展開する"
             >
               <span
-                className="w-7 h-7 rounded-full flex items-center justify-center text-white text-sm flex-shrink-0"
+                className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                 style={{ backgroundColor: primaryColor }}
-              >
-                🤖
-              </span>
+              />
               <span className="hidden sm:block text-xs font-bold text-gray-700 whitespace-nowrap">
                 {config.title ?? 'AIコンシェルジュ'}
               </span>
+              <span className="hidden sm:inline text-[10px] px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-700 font-medium flex-shrink-0">β版</span>
+              {showControlPanel && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 font-bold flex-shrink-0">DEBUG</span>
+              )}
             </div>
             {/* 入力フィールド */}
             <textarea
@@ -672,10 +674,15 @@ export default function ZundamonWidget() {
                     <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
                   </svg>
                 </button>
+                <span
+                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: primaryColor }}
+                />
                 <span className="text-xs font-bold text-gray-700 truncate">
-                  🌿💜 {config.subtitle ?? config.title ?? 'AIコンシェルジュ'}
+                  {config.subtitle ?? config.title ?? 'AIコンシェルジュ'}
                   <span className="hidden sm:inline ml-1 font-normal text-gray-400">（ずんだもん × 四国めたん）</span>
                 </span>
+                <span className="hidden sm:inline text-[10px] px-1.5 py-0.5 rounded-full bg-teal-50 text-teal-700 font-medium flex-shrink-0">β版</span>
                 {showControlPanel && (
                   <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 font-bold flex-shrink-0">DEBUG</span>
                 )}
