@@ -458,62 +458,94 @@ export default function ZundamonWidget() {
     }
   }, [activeConvId, emit]);
 
-  // ── AI endpoint resolve (or fallback) ──────────────────────────
-  const resolveReply = useCallback(async (prompt: string): Promise<SpeakerLine[]> => {
-    const cfg = configRef.current;
-    if (!cfg.aiEndpoint) {
-      return SAMPLE_RESPONSES[classifyTheme(prompt)];
-    }
-    try {
-      const res = await fetch(cfg.aiEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(cfg.token ? { Authorization: `Bearer ${cfg.token}` } : {}),
-        },
-        body: JSON.stringify({
-          input: prompt,
-          history: messagesRef.current,
-          context: contextRef.current,
-          tenantId: cfg.tenantId,
-          userId: cfg.userId,
-          defaultEmotion: cfg.defaultEmotion ?? 'neutral',
-          character: cfg.characterName ?? 'ずんだもん',
-        }),
-      });
-      if (!res.ok) throw new Error(`AI endpoint ${res.status}`);
-      const body = await res.json();
-
-      // 配列応答なら掛け合いをそのまま使う
-      if (Array.isArray(body.lines)) {
-        type MaybeLine = { speaker?: unknown; emotion?: unknown; text?: unknown };
-        return (body.lines as unknown[])
-          .filter((l): l is MaybeLine => !!l && typeof l === 'object')
-          .map((l): SpeakerLine => ({
-            speaker: isCharacter(l.speaker) ? l.speaker : 'zundamon',
-            emotion: isEmotion(l.emotion) ? l.emotion : (cfg.defaultEmotion ?? 'neutral'),
-            text: String(l.text ?? ''),
-          }))
-          .filter((l) => l.text.length > 0);
+  /**
+   * 1 行ぶんの prefetch + 再生タスクを返す。
+   * prefetch (= /api/speak + VOICEVOX) は即開始し、再生は呼び出し側で順番に await する。
+   */
+  const prepareAndRunLine = useCallback((line: SpeakerLine, urlsToRevoke: string[]) => {
+    const prefetchP = (async () => {
+      try {
+        const res = await fetch('/api/speak', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: line.text, emotion: line.emotion, character: line.speaker }),
+        });
+        if (!res.ok) throw new Error('speak API error');
+        const payload: SpeakResponse = await res.json();
+        let audioBlob: Blob | null = null;
+        try {
+          const r = await synthesize(payload.spokenText, payload.voicevoxStyleId);
+          audioBlob = r.audioBlob;
+        } catch (e) {
+          console.warn('[widget] VOICEVOX synthesis failed:', e);
+        }
+        return { blendShapes: payload.blendShapes, spokenText: payload.spokenText, audioBlob };
+      } catch (e) {
+        console.error('[widget] prefetch failed', e);
+        return { blendShapes: null as Record<string, number> | null, spokenText: line.text, audioBlob: null as Blob | null };
       }
-      // 単発応答
-      const text = body.replyText ?? body.text ?? body.message ?? prompt;
-      return [{
-        speaker: isCharacter(body.character) ? body.character : 'zundamon',
-        emotion: isEmotion(body.emotion) ? body.emotion : (cfg.defaultEmotion ?? 'neutral'),
-        text,
-      }];
-    } catch (e) {
-      console.error('[widget] AI endpoint failed, fallback:', e);
-      return SAMPLE_RESPONSES[classifyTheme(prompt)];
-    }
+    })();
+
+    const playP = async () => {
+      const p = await prefetchP;
+      const speaker = line.speaker;
+      const other = speaker === 'zundamon' ? metanRef : zundaRef;
+      const ref = speaker === 'zundamon' ? zundaRef : metanRef;
+      other.current?.setListening(true);
+      speakingCharRef.current = speaker;
+      setViewerEmotion(line.emotion);
+      setBubble({ speaker, text: line.text });
+      if (p.blendShapes) ref.current?.setBlendShapes(p.blendShapes);
+      if (p.audioBlob) {
+        const url = URL.createObjectURL(p.audioBlob);
+        urlsToRevoke.push(url);
+        const audio = new Audio(url);
+        audio.preload = 'auto';
+        setAudioEl(audio);
+        await new Promise<void>((resolve) => {
+          audio.onended = () => resolve();
+          audio.onerror = () => resolve();
+          audio.play().catch(() => resolve());
+        });
+        setAudioEl(null);
+      } else {
+        await new Promise<void>((resolve) => setTimeout(resolve, 2000));
+      }
+      ref.current?.setBlendShapes({ neutral: 1.0 });
+      other.current?.setListening(false);
+    };
+
+    return playP;
   }, []);
 
+  /** 到着したラインをチャット履歴へ即時追加する (再生完了を待たない)。 */
+  const appendAssistantLine = useCallback((line: SpeakerLine) => {
+    const msg: WidgetMessage = {
+      id: makeId(),
+      role: 'assistant',
+      text: line.text,
+      emotion: line.emotion,
+      character: line.speaker,
+      spokenText: line.text,
+      timestamp: new Date().toISOString(),
+    };
+    appendMessageToActive(msg);
+    emit('zundamon:answerShown', msg);
+  }, [appendMessageToActive, emit]);
+
+  /**
+   * メインの会話実行。
+   * - aiEndpoint 未設定 → SAMPLE_RESPONSES でフォールバック (従来の playLinesBatch)
+   * - aiEndpoint 応答が text/event-stream → 逐次ストリーミング再生
+   *   ・1 行到着ごとに即 prefetch 開始 (行どうしは並列)
+   *   ・再生は promise chain で順序保持 (前行の再生完了 + 現行の prefetch 完了を待つ)
+   * - それ以外 (JSON 応答) → 配列受領後 playLinesBatch で従来フロー
+   */
   const runConversation = useCallback(async (rawText: string) => {
     const text = rawText.trim();
-    if (!text || isLoading) return;
+    if (!text || isLoading || playingRef.current) return;
     setError(null);
-    setIsLoading(true);
+
     const userMessage: WidgetMessage = {
       id: makeId(),
       role: 'user',
@@ -523,16 +555,137 @@ export default function ZundamonWidget() {
     appendMessageToActive(userMessage);
     emit('zundamon:messageSent', userMessage);
 
+    const cfg = configRef.current;
+
+    // ── フォールバック: aiEndpoint 未設定時 ────────────────────────
+    if (!cfg.aiEndpoint) {
+      try {
+        const lines = SAMPLE_RESPONSES[classifyTheme(text)];
+        await playLinesBatch(lines);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : '不明なエラー';
+        setError(msg);
+        emit('zundamon:error', { message: msg });
+        setIsLoading(false);
+      }
+      return;
+    }
+
+    playingRef.current = true;
+    setIsLoading(true);
+    const urlsToRevoke: string[] = [];
+    let playChain: Promise<void> = Promise.resolve();
+    let anyLineReceived = false;
+
+    const schedule = (line: SpeakerLine) => {
+      anyLineReceived = true;
+      appendAssistantLine(line);
+      const runLine = prepareAndRunLine(line, urlsToRevoke);
+      playChain = playChain.then(runLine).catch((e) => {
+        console.error('[widget] play chain error', e);
+      });
+    };
+
     try {
-      const lines = await resolveReply(text);
-      await playLinesBatch(lines);
+      const res = await fetch(cfg.aiEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(cfg.token ? { Authorization: `Bearer ${cfg.token}` } : {}),
+        },
+        body: JSON.stringify({
+          input: text,
+          history: messagesRef.current,
+          context: contextRef.current,
+          tenantId: cfg.tenantId,
+          userId: cfg.userId,
+          defaultEmotion: cfg.defaultEmotion ?? 'neutral',
+          character: cfg.characterName ?? 'ずんだもん',
+        }),
+      });
+      if (!res.ok) throw new Error(`AI endpoint ${res.status}`);
+
+      const contentType = res.headers.get('content-type') ?? '';
+      const isStream = contentType.includes('text/event-stream');
+
+      if (isStream && res.body) {
+        // ── ストリーミング読み取り ─────────────────────────────────
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+        let streamError: string | null = null;
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const events = buf.split('\n\n');
+          buf = events.pop() ?? '';
+          for (const ev of events) {
+            const dataLine = ev.split('\n').find((l) => l.startsWith('data: '));
+            if (!dataLine) continue;
+            try {
+              const data = JSON.parse(dataLine.slice(6));
+              if (data.type === 'line' && data.line) {
+                const l = data.line;
+                if (isCharacter(l.speaker) && isEmotion(l.emotion) && typeof l.text === 'string' && l.text.length > 0) {
+                  schedule({ speaker: l.speaker, emotion: l.emotion, text: l.text });
+                }
+              } else if (data.type === 'error' && typeof data.message === 'string') {
+                streamError = data.message;
+              }
+            } catch {
+              // incomplete JSON, ignore
+            }
+          }
+        }
+        if (streamError && !anyLineReceived) {
+          throw new Error(streamError);
+        }
+      } else {
+        // ── JSON フォールバック (従来の { lines: [...] } 形式) ──────
+        const body = await res.json();
+        if (Array.isArray(body.lines)) {
+          type MaybeLine = { speaker?: unknown; emotion?: unknown; text?: unknown };
+          const arr: SpeakerLine[] = (body.lines as unknown[])
+            .filter((l): l is MaybeLine => !!l && typeof l === 'object')
+            .map((l): SpeakerLine => ({
+              speaker: isCharacter(l.speaker) ? l.speaker : 'zundamon',
+              emotion: isEmotion(l.emotion) ? l.emotion : (cfg.defaultEmotion ?? 'neutral'),
+              text: String(l.text ?? ''),
+            }))
+            .filter((l) => l.text.length > 0);
+          for (const line of arr) schedule(line);
+        } else {
+          const replyText = body.replyText ?? body.text ?? body.message ?? text;
+          schedule({
+            speaker: isCharacter(body.character) ? body.character : 'zundamon',
+            emotion: isEmotion(body.emotion) ? body.emotion : (cfg.defaultEmotion ?? 'neutral'),
+            text: replyText,
+          });
+        }
+      }
+
+      // 全行の再生完了を待つ
+      await playChain;
     } catch (e) {
       const msg = e instanceof Error ? e.message : '不明なエラー';
+      console.error('[widget] runConversation failed', e);
       setError(msg);
       emit('zundamon:error', { message: msg });
+      // エラーで 1 行も届かなかった場合はフォールバックを鳴らす
+      if (!anyLineReceived) {
+        try {
+          const lines = SAMPLE_RESPONSES[classifyTheme(text)];
+          for (const line of lines) schedule(line);
+          await playChain;
+        } catch { /* noop */ }
+      }
+    } finally {
+      for (const u of urlsToRevoke) URL.revokeObjectURL(u);
+      playingRef.current = false;
       setIsLoading(false);
     }
-  }, [appendMessageToActive, emit, isLoading, playLinesBatch, resolveReply]);
+  }, [appendAssistantLine, appendMessageToActive, emit, isLoading, playLinesBatch, prepareAndRunLine]);
 
   // ── postMessage 受信 ────────────────────────────────────────────
   useEffect(() => {
