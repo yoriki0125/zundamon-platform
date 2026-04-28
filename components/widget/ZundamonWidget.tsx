@@ -21,6 +21,7 @@ import type {
   WidgetMessage,
 } from '@/lib/widget-types';
 import { parseDialogueScript } from '@/lib/dialogue-parser';
+import { resolveWidgetUserId } from '@/lib/widget-user-id';
 
 const VRMViewer = dynamic(() => import('@/components/VRMViewer'), { ssr: false });
 
@@ -124,6 +125,8 @@ export default function ZundamonWidget() {
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
 
   const [config, setConfig] = useState<WidgetInitConfig>(() => ({
+    humanId: resolveWidgetUserId(searchParams.get('humanid'), undefined),
+    userId: resolveWidgetUserId(searchParams.get('humanid'), searchParams.get('userId')),
     mode: (searchParams.get('mode') as WidgetInitConfig['mode']) ?? 'embedded',
     title: searchParams.get('title') ?? 'AIコンシェルジュ',
     subtitle: searchParams.get('subtitle') ?? 'ずんだもん × 四国めたん',
@@ -701,9 +704,16 @@ export default function ZundamonWidget() {
           const next = Object.fromEntries(
             Object.entries(raw).filter(([, v]) => v !== undefined)
           ) as WidgetInitConfig;
+          const effectiveUserId = resolveWidgetUserId(next.humanId, next.userId);
           parentOriginRef.current = next.parentOrigin || event.origin || parentOriginRef.current;
           contextRef.current = next.context ?? contextRef.current;
-          setConfig((prev) => ({ ...prev, ...next, context: next.context ?? prev.context }));
+          setConfig((prev) => ({
+            ...prev,
+            ...next,
+            humanId: next.humanId ?? prev.humanId,
+            userId: effectiveUserId ?? prev.userId,
+            context: next.context ?? prev.context,
+          }));
           if (typeof next.showDebugPanel === 'boolean') setShowControlPanel(next.showDebugPanel);
           postResize();
           break;

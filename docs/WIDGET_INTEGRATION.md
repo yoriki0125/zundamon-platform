@@ -45,6 +45,7 @@
     container: '#ai-concierge-root',
     baseUrl: 'https://YOUR-DOMAIN',
     mode: 'embedded',
+    humanId: 'EMP00123',
     tenantId: 'xxx',
     userId: '12345',
     token: 'signed_token',
@@ -55,6 +56,8 @@
   });
 </script>
 ```
+
+ユーザー識別子の優先順位は `humanId (SDK init)` > `humanid (iframe query)` > `userId` です。`humanId` / `humanid` は trim 後 1〜50 文字のみ有効です。
 
 ## AI Endpoint の期待レスポンス
 
