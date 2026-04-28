@@ -50,6 +50,7 @@ window.ZundamonWidget.init({
 | `title` | `string` | ヘッダータイトル |
 | `subtitle` | `string` | ヘッダーサブタイトル |
 | `characterName` | `string` | 主キャラ名 (既定: ずんだもん) |
+| `humanId` | `string` | SDK初期化オプション。1〜50文字、有効時は`userId`より優先 |
 | `tenantId` / `userId` / `token` | `string` | ホスト側の識別子 / 短命トークン |
 | `humanid` (iframe query) | `string` | iframe URLクエリで渡す利用ユーザーID。1〜50文字、有効時は`userId`として扱われる |
 | `aiEndpoint` | `string` | 独自 AI エンドポイント。未指定なら `/api/widget-chat` |
@@ -60,14 +61,28 @@ window.ZundamonWidget.init({
 
 ## 4. AI エンドポイントの契約
 
-`iframe`埋め込みURLに `humanid` を付与できます。
+推奨は SDK 初期化オプションで `humanId` を渡す方法です。
+
+```html
+<div id="ai-concierge-root"></div>
+<script src="https://YOUR-DOMAIN/widget/zundamon-widget-sdk.js"></script>
+<script>
+  window.ZundamonWidget.init({
+    container: '#ai-concierge-root',
+    baseUrl: 'https://YOUR-DOMAIN',
+    humanId: 'EMP00123'
+  });
+</script>
+```
+
+iframe URLに直接 `humanid` を付与する方式も引き続き利用できます。
 
 ```html
 <iframe src="https://YOUR-DOMAIN/widget?mode=embedded&humanid=EMP00123"></iframe>
 ```
 
-- `humanid` は trim 後 1〜50 文字のときのみ有効です。
-- 有効な `humanid` がある場合、内部では `userId` より優先してAIリクエストへ渡されます。
+- `humanId` / `humanid` は trim 後 1〜50 文字のときのみ有効です。
+- 優先順位は `humanId (SDK)` > `humanid (query)` > `userId` です。
 
 `aiEndpoint` を指定しない場合、ウィジェットは同梱の `/api/widget-chat`（Dify プロキシ）を使います。独自 AI につなぐ場合は、以下の契約を満たしてください。
 

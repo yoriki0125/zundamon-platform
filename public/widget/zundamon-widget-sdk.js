@@ -12,9 +12,20 @@
     throw new Error('ZundamonWidget: invalid container.');
   }
 
-  function createIframe(baseUrl, mode) {
+  function normalizeHumanId(value) {
+    if (typeof value !== 'string') return undefined;
+    const normalized = value.trim();
+    if (!normalized || normalized.length > 50) return undefined;
+    return normalized;
+  }
+
+  function createIframe(baseUrl, mode, humanId) {
     const iframe = document.createElement('iframe');
-    iframe.src = baseUrl.replace(/\/$/, '') + '/widget?mode=' + encodeURIComponent(mode || 'embedded');
+    const base = baseUrl.replace(/\/$/, '') + '/widget';
+    const params = new URLSearchParams({ mode: mode || 'embedded' });
+    const normalizedHumanId = normalizeHumanId(humanId);
+    if (normalizedHumanId) params.set('humanid', normalizedHumanId);
+    iframe.src = base + '?' + params.toString();
     iframe.allow = 'autoplay';
     iframe.setAttribute('title', 'Zundamon Widget');
     iframe.style.width = '100%';
@@ -49,8 +60,9 @@
 
   function init(config) {
     const options = normalizeConfig(config);
+    const normalizedHumanId = normalizeHumanId(options.humanId);
     const container = options.mode === 'floating' ? document.body : ensureContainer(options.container);
-    const iframe = createIframe(options.baseUrl, options.mode);
+    const iframe = createIframe(options.baseUrl, options.mode, normalizedHumanId);
     const wrapper = document.createElement('div');
 
     let isOpen = options.mode !== 'floating';
@@ -116,6 +128,7 @@
         title: options.title,
         subtitle: options.subtitle,
         characterName: options.characterName,
+        humanId: normalizedHumanId,
         tenantId: options.tenantId,
         userId: options.userId,
         token: options.token,

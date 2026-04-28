@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import dns from 'node:dns';
 import type { Character, Emotion } from '@/lib/types';
+import { resolveWidgetUserId } from '@/lib/widget-user-id';
 
 // Node 20+ は既定で IPv6 優先で DNS を解決するが、Windows 環境 + Dify の組み合わせで
 // IPv6 経路が ECONNRESET を返すことがあるため IPv4 を優先させる。
@@ -68,6 +69,8 @@ export async function POST(req: NextRequest) {
     input?: string;
     defaultEmotion?: Emotion;
     conversationId?: string;
+    humanId?: string;
+    userId?: string;
   };
 
   const input = body.input?.trim();
@@ -82,6 +85,7 @@ export async function POST(req: NextRequest) {
   }
 
   const defaultEmotion: Emotion = body.defaultEmotion ?? 'neutral';
+  const difyUserId = resolveWidgetUserId(body.humanId, body.userId) ?? 'zundamon-widget';
 
   // Dify SSE ストリームを読みながら、完成した行を逐次 SSE で client へ転送する。
   // 目的: Dify の全文待機 (~40秒) を排除し、1 行目から即 VOICEVOX 合成を開始できるようにする。
@@ -104,7 +108,7 @@ export async function POST(req: NextRequest) {
             query: input,
             response_mode: 'streaming',
             conversation_id: body.conversationId ?? '',
-            user: 'zundamon-widget',
+            user: difyUserId,
           }),
         });
 
