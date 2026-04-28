@@ -30,6 +30,7 @@ export interface WidgetConversation {
 
 export interface WidgetInitConfig {
   mode?: WidgetMode;
+  humanId?: string;
   tenantId?: string;
   userId?: string;
   token?: string;
